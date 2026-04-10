@@ -147,7 +147,7 @@
       console.log('[RankSniper] Injecting:', reviewData.reviewerName, '| rating:', reviewData.rating);
       const btn = createSniperButton(reviewData, container);
       const replyBtn = container.querySelector('div.lGXsGc button');
-      const replyBtn2 = container.querySelector('div.lGXsGc button'); if (replyBtn2) { replyBtn2.after(btn); } else { container.appendChild(btn); }
+      const lGXsGc = container.querySelector('div.lGXsGc'); if (lGXsGc) { lGXsGc.after(btn); } else { container.appendChild(btn); }
     });
   }
 
@@ -163,6 +163,7 @@
 
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
 })();
+
 
 
 
