@@ -75,7 +75,8 @@
     const reviews = isMaps ? getMapsReviews() : getReviewsFromPageData();
     const cards = [...document.querySelectorAll(isMaps ? "[data-review-id]" : "div.OUCuxb")];
     cards.forEach((card, i) => {
-      if (card.querySelector(".ranksniper-btn")) return;
+      if (card.getAttribute("data-rs")) return;
+      card.setAttribute("data-rs", "1");
       const reviewData = reviews[i] || reviews[0];
       if (!reviewData || !reviewData.reviewText) return;
       const btn = document.createElement("button");
@@ -100,3 +101,4 @@
   }
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", init) : init();
 })();
+
