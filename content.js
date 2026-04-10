@@ -1,7 +1,5 @@
 ﻿// RankSniper - Content Script v1.22
 (function () {
-  const GEMINI_API_KEY = 'AIzaSyDjrxPKNJB3o_7vac-JlG2aFdPjldZgYJQ';
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
   let businessProfile = null;
   function loadProfile() {
     return new Promise(resolve => {
@@ -147,4 +145,5 @@
   }
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
 })();
+
 
