@@ -1,4 +1,4 @@
-// RankSniper - Content Script v1.28
+// RankSniper - Content Script v1.29
 (function () {
   let businessProfile = null;
   let geminiApiKey = null;
@@ -66,6 +66,17 @@
     finally { btn.disabled = false; btn.textContent = 'Draft AI Response'; }
   }
 
+  function pasteIntoTextarea(text) {
+    const ta = document.querySelector('textarea');
+    if (!ta) { navigator.clipboard.writeText(text); showNotice('Copied - paste manually with Ctrl+V.', 'info'); return; }
+    ta.focus();
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+    setter.call(ta, text);
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    ta.dispatchEvent(new Event('change', { bubbles: true }));
+    showNotice('Pasted! Click Submit.', 'success');
+  }
+
   function showPanel(card, responseText, reviewData) {
     card.querySelector('.rs-panel')?.remove();
     const panel = document.createElement('div');
@@ -92,11 +103,8 @@
     panel.querySelector('.rs-paste-btn').addEventListener('click', () => {
       const rb = card.querySelector('.F87tLd') || card.querySelector('div.lGXsGc button') || card.querySelector('button[aria-label*="Reply"]');
       if (rb) rb.click();
-      setTimeout(() => {
-        const ta = document.querySelector('textarea[aria-label*="eply"],textarea[placeholder*="eply"]') || document.querySelector('textarea') || card.querySelector('[contenteditable="true"]');
-        if (ta) { ta.focus(); ta.value = panel.querySelector('.rs-response-text').value; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.dispatchEvent(new Event('change', { bubbles: true })); showNotice('Pasted! Click Submit.', 'success'); }
-        else { navigator.clipboard.writeText(panel.querySelector('.rs-response-text').value); showNotice('Copied - paste manually.', 'info'); }
-      }, 800);
+      const text = panel.querySelector('.rs-response-text').value;
+      setTimeout(() => pasteIntoTextarea(text), 1000);
     });
     panel.querySelector('.rs-regen-btn').addEventListener('click', async () => {
       panel.remove();
@@ -141,7 +149,7 @@
       btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, card); });
       if (isSearch) {
         const rb = card.querySelector('.F87tLd');
-        if (rb) rb.insertAdjacentElement('afterend', btn);
+        if (rb) rb.parentElement.appendChild(btn);
         else card.appendChild(btn);
       } else {
         const row = card.querySelector('div.lGXsGc');
@@ -161,7 +169,7 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.28 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
+    console.log('[RankSniper] v1.29 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
     setTimeout(injectButtons, 2000);
     setTimeout(injectButtons, 4000);
   }
