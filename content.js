@@ -1,4 +1,4 @@
-﻿// RankSniper - Content Script v1.20
+// RankSniper - Content Script v1.21
 (function () {
   const GEMINI_API_KEY = 'AIzaSyDjrxPKNJB3o_7vac-JlG2aFdPjldZgYJQ';
   const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
@@ -24,7 +24,7 @@
       return reviews.map(r => ({
         reviewText: r[5] || r[6] || '',
         rating: r[19] ?? 5,
-        reviewerName: r[27]?.[1] || 'Customer',
+        reviewerName: r[32]?.[1] || 'Customer',
         reviewId: r[0] || ''
       })).filter(r => r.reviewText.length > 0);
     } catch (e) {
@@ -61,7 +61,7 @@
   function createSniperButton(reviewData, container) {
     const btn = document.createElement('button');
     btn.className = 'ranksniper-btn';
-    btn.innerHTML = '<span class="rs-btn-icon">🎯</span><span class="rs-btn-text">Draft AI Response</span>';
+    btn.innerHTML = '<span class="rs-btn-icon">??</span><span class="rs-btn-text">Draft AI Response</span>';
     btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, container); });
     return btn;
   }
@@ -69,7 +69,7 @@
     await loadProfile();
     console.log('[RankSniper] Generating for:', reviewData.reviewerName, '| rating:', reviewData.rating);
     btn.disabled = true;
-    btn.innerHTML = '<span class="rs-btn-icon rs-spin">⟳</span><span class="rs-btn-text">Generating...</span>';
+    btn.innerHTML = '<span class="rs-btn-icon rs-spin">?</span><span class="rs-btn-text">Generating...</span>';
     try {
       const responseText = await callGemini(reviewData);
       showPanel(container, responseText, btn, reviewData);
@@ -78,7 +78,7 @@
       showNotice('Error: ' + err.message, 'error');
     } finally {
       btn.disabled = false;
-      btn.innerHTML = '<span class="rs-btn-icon">🎯</span><span class="rs-btn-text">Draft AI Response</span>';
+      btn.innerHTML = '<span class="rs-btn-icon">??</span><span class="rs-btn-text">Draft AI Response</span>';
     }
   }
   function showPanel(container, responseText, sniperBtn, reviewData) {
@@ -86,11 +86,11 @@
     const panel = document.createElement('div');
     panel.className = 'rs-panel';
     const uid = Date.now();
-    panel.innerHTML = `<div class="rs-panel-header"><span class="rs-panel-logo">🎯 RankSniper</span><div class="rs-panel-badges"><span class="rs-badge rs-badge-seo">SEO Optimized</span></div><button class="rs-panel-close">✕</button></div><div class="rs-panel-body"><textarea class="rs-response-text" rows="6">${responseText}</textarea><div class="rs-panel-actions"><button class="rs-copy-btn">📋 Copy</button><button class="rs-paste-btn">✍️ Paste into Reply Box</button><button class="rs-regen-btn">🔄 Regenerate</button></div><div class="rs-keywords-row"><span class="rs-keywords-label">Keywords used:</span><span class="rs-keywords-list" id="rs-kw-${uid}"></span></div></div>`;
+    panel.innerHTML = `<div class="rs-panel-header"><span class="rs-panel-logo">?? RankSniper</span><div class="rs-panel-badges"><span class="rs-badge rs-badge-seo">SEO Optimized</span></div><button class="rs-panel-close">?</button></div><div class="rs-panel-body"><textarea class="rs-response-text" rows="6">${responseText}</textarea><div class="rs-panel-actions"><button class="rs-copy-btn">?? Copy</button><button class="rs-paste-btn">?? Paste into Reply Box</button><button class="rs-regen-btn">?? Regenerate</button></div><div class="rs-keywords-row"><span class="rs-keywords-label">Keywords used:</span><span class="rs-keywords-list" id="rs-kw-${uid}"></span></div></div>`;
     container.appendChild(panel);
     setTimeout(() => { const kwEl = panel.querySelector(`#rs-kw-${uid}`); if (kwEl) extractAndShowKeywords(kwEl, responseText); }, 100);
     panel.querySelector('.rs-panel-close')?.addEventListener('click', () => panel.remove());
-    panel.querySelector('.rs-copy-btn')?.addEventListener('click', () => { navigator.clipboard.writeText(panel.querySelector('.rs-response-text').value); const b = panel.querySelector('.rs-copy-btn'); b.textContent = '✅ Copied!'; setTimeout(() => b.textContent = '📋 Copy', 2000); });
+    panel.querySelector('.rs-copy-btn')?.addEventListener('click', () => { navigator.clipboard.writeText(panel.querySelector('.rs-response-text').value); const b = panel.querySelector('.rs-copy-btn'); b.textContent = '? Copied!'; setTimeout(() => b.textContent = '?? Copy', 2000); });
     panel.querySelector('.rs-paste-btn')?.addEventListener('click', () => { pasteIntoReplyBox(container, panel.querySelector('.rs-response-text').value); });
     panel.querySelector('.rs-regen-btn')?.addEventListener('click', async () => { panel.remove(); const freshBtn = container.querySelector('.ranksniper-btn'); if (freshBtn) await handleDraftClick(freshBtn, reviewData, container); });
   }
@@ -124,7 +124,7 @@
   function injectButtons() {
     const pageReviews = getReviewsFromPageData();
     const containers = findReviewContainers();
-    console.log('[RankSniper] v1.20 - reviews from JSON:', pageReviews.length, '| DOM containers:', containers.length);
+    console.log('[RankSniper] v1.21 - reviews from JSON:', pageReviews.length, '| DOM containers:', containers.length);
     if (pageReviews.length === 0 || containers.length === 0) return;
     containers.forEach((container, i) => {
       if (container.querySelector('.ranksniper-btn')) return;
@@ -141,7 +141,7 @@
   observer.observe(document.body, { subtree: true, childList: true });
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.20 loaded. Profile:', businessProfile ? '✅' : '⚠️ Not set');
+    console.log('[RankSniper] v1.21 loaded. Profile:', businessProfile ? '?' : '?? Not set');
     setTimeout(injectButtons, 1000);
     setTimeout(injectButtons, 2500);
   }
