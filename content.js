@@ -85,7 +85,8 @@
     const reviews = isMaps ? getMapsReviews() : getReviewsFromPageData();
     const cards = isMaps ? [...document.querySelectorAll('[data-review-id]')] : [...document.querySelectorAll('div.OUCuxb')];
     cards.forEach((card, i) => {
-      if (card.querySelector('.ranksniper-btn')) return;
+      if (card.dataset.rsInjected) return;
+      if (card.querySelector('.ranksniper-btn')) { card.dataset.rsInjected = '1'; return; }
       const reviewData = reviews[i] || reviews[0];
       if (!reviewData || !reviewData.reviewText) return;
       const btn = document.createElement('button');
@@ -96,10 +97,12 @@
         const replyBtn = card.querySelector('button[aria-label*="Reply"]');
         if (replyBtn) replyBtn.insertAdjacentElement('afterend', btn);
         else card.appendChild(btn);
+      card.dataset.rsInjected = '1';
       } else {
         const row = card.querySelector('div.lGXsGc');
         if (row) row.appendChild(btn);
         else card.appendChild(btn);
+      card.dataset.rsInjected = '1';
       }
     });
   }
@@ -113,3 +116,5 @@
   }
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
 })();
+
+

@@ -45,7 +45,7 @@
     saveBtn.textContent = 'Saving...';
     saveBtn.disabled = true;
 
-    chrome.storage.local.set({ ranksniperProfile: profile, geminiApiKey: document.getElementById('geminiApiKey').value.trim() }, () => {
+    chrome.storage.local.set({ ranksniperProfile: profile, geminiApiKey: (document.getElementById('geminiApiKey') ? document.getElementById('geminiApiKey').value.trim() : null) }, () => {
       if (chrome.runtime.lastError) {
         saveBtn.textContent = 'âŒ Error saving';
         saveBtn.disabled = false;
@@ -61,4 +61,5 @@
   });
 
 });
+
 
