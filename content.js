@@ -1,4 +1,4 @@
-﻿// RankSniper - Content Script v1.25
+﻿// RankSniper - Content Script v1.26
 (function () {
   let businessProfile = null;
   let geminiApiKey = null;
@@ -26,8 +26,8 @@
   function getMapsReviews() {
     try {
       return [...document.querySelectorAll("[data-review-id]")].map(card => ({
-        reviewerName: (card.querySelector(".al6Kxe")||{innerText:"Customer"}).innerText.split("\n")[0].trim() || "Customer",
-        rating: parseInt((card.querySelector(".kvMYJc")||{getAttribute:()=>"5 stars"}).getAttribute("aria-label")) || 5,
+        reviewerName: (card.querySelector(".al6Kxe")||{innerText:"Customer"}).innerText.split("\n")[0].trim()||"Customer",
+        rating: parseInt((card.querySelector(".kvMYJc")||{getAttribute:()=>"5"}).getAttribute("aria-label"))||5,
         reviewText: (card.querySelector(".wiI7pd")||{innerText:""}).innerText.trim()
       })).filter(r => r.reviewText.length > 0);
     } catch (e) { return []; }
@@ -38,7 +38,7 @@
     const p = businessProfile || {};
     const biz = p.businessName||"Our Business", city = p.city||"our city", type = p.businessType||"local business", tone = p.tone||"friendly";
     const firstName = reviewData.reviewerName.split(" ")[0];
-    const g = reviewData.rating<=2 ? "Negative review: apologize sincerely." : reviewData.rating===3 ? "Mixed review: thank them and acknowledge issues." : "Positive review: thank them warmly.";
+    const g = reviewData.rating<=2 ? "Negative review: apologize sincerely and explain improvements." : reviewData.rating===3 ? "Mixed review: thank them and acknowledge issues." : "Positive review: thank them warmly.";
     const prompt = "Respond to this Google review for "+biz+" ("+type+") in "+city+". Tone: "+tone+". Start with Hi "+firstName+",. "+g+" Include city and business name. Under 150 words.\n\nReview ("+reviewData.rating+"/5): "+reviewData.reviewText+"\n\nWrite only the response.";
     const res = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:200,temperature:0.7}}) });
     if (!res.ok) { const err = await res.json(); throw new Error(err?.error?.message||"Gemini API error"); }
@@ -71,7 +71,6 @@
   }
   function showNotice(msg,type){document.getElementById("rs-notice")?.remove();const n=document.createElement("div");n.id="rs-notice";n.className="rs-notice rs-notice-"+(type||"info");n.textContent=msg;document.body.appendChild(n);setTimeout(()=>n.remove(),4000);}
   function injectButtons() {
-    observer.disconnect();
     const isMaps = window.location.href.includes("google.com/maps");
     const reviews = isMaps ? getMapsReviews() : getReviewsFromPageData();
     const cards = [...document.querySelectorAll(isMaps ? "[data-review-id]" : "div.OUCuxb")];
@@ -96,10 +95,8 @@
   new MutationObserver(() => { clearTimeout(t); t = setTimeout(injectButtons, 1500); }).observe(document.body, { subtree:true, childList:true });
   async function init() {
     await loadProfile();
-    console.log("[RankSniper] v1.25 loaded. API key:", geminiApiKey ? "OK" : "MISSING");
+    console.log("[RankSniper] v1.26 loaded. API key:", geminiApiKey ? "OK" : "MISSING");
     setTimeout(injectButtons, 2000);
   }
-  observer.observe(document.body, { subtree:true, childList:true });
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", init) : init();
 })();
-
