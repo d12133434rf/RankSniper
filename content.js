@@ -66,15 +66,19 @@
     finally { btn.disabled = false; btn.textContent = 'Draft AI Response'; }
   }
 
-  function pasteIntoTextarea(text) {
+function pasteIntoTextarea(text) {
     const ta = document.querySelector('textarea');
-    if (!ta) { navigator.clipboard.writeText(text); showNotice('Copied - paste manually with Ctrl+V.', 'info'); return; }
-    ta.focus();
-    const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
-    setter.call(ta, text);
-    ta.dispatchEvent(new Event('input', { bubbles: true }));
-    ta.dispatchEvent(new Event('change', { bubbles: true }));
-    showNotice('Pasted! Click Submit.', 'success');
+    if (ta && !ta.closest('iframe')) {
+      ta.focus();
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+      setter.call(ta, text);
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      ta.dispatchEvent(new Event('change', { bubbles: true }));
+      showNotice('Pasted! Click Submit.', 'success');
+    } else {
+      navigator.clipboard.writeText(text);
+      showNotice('Copied! Click the reply box and press Ctrl+V to paste.', 'info');
+    }
   }
 
   function showPanel(card, responseText, reviewData) {
