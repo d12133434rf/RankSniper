@@ -154,7 +154,9 @@
       const isMaps = window.location.href.includes("google.com/maps");
       if (isMaps) {
         const replyBtn = reviewCard.querySelector("button[aria-label*='Reply']");
-        if (replyBtn) { replyBtn.insertAdjacentElement("afterend", btn); } else { reviewCard.appendChild(btn); }
+        if (replyBtn && !replyBtn.nextElementSibling?.classList.contains("ranksniper-btn")) { 
+          replyBtn.insertAdjacentElement("afterend", btn); 
+        } else if (!replyBtn) { reviewCard.appendChild(btn); }
       } else {
         const lGXsGc = reviewCard.querySelector("div.lGXsGc");
         if (lGXsGc) { lGXsGc.appendChild(btn); } else { reviewCard.appendChild(btn); }
@@ -184,6 +186,7 @@
 
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
 })();
+
 
 
 
