@@ -13,6 +13,22 @@
     });
   }
 
+  function getMapsReviews() {
+    try {
+      const cards = [...document.querySelectorAll("[data-review-id]")];
+      return cards.map(card => {
+        const nameEl = card.querySelector(".al6Kxe");
+        const reviewerName = nameEl ? nameEl.innerText.split("\n")[0].trim() : "Customer";
+        const ratingEl = card.querySelector(".kvMYJc");
+        const ratingLabel = ratingEl ? ratingEl.getAttribute("aria-label") : "5 stars";
+        const rating = parseInt(ratingLabel) || 5;
+        const textEl = card.querySelector(".wiI7pd");
+        const reviewText = textEl ? textEl.innerText.trim() : "";
+        return { reviewerName, rating, reviewText, reviewId: card.getAttribute("data-review-id") };
+      }).filter(r => r.reviewText.length > 0);
+    } catch(e) { return []; }
+  }
+
   function getReviewsFromPageData() {
     try {
       const script = document.querySelector('script.ds\\:3');
@@ -121,8 +137,9 @@
   }
 
   function injectButtons() {
-    const pageReviews = getReviewsFromPageData();
-    const reviewCards = [...document.querySelectorAll('div.OUCuxb')];
+    const isMaps = window.location.href.includes("google.com/maps");
+    const pageReviews = isMaps ? getMapsReviews() : getReviewsFromPageData();
+    const reviewCards = isMaps ? [...document.querySelectorAll("[data-review-id]")] : [...document.querySelectorAll("div.OUCuxb")];
     console.log('[RankSniper] v1.23 - reviews:', pageReviews.length, '| cards:', reviewCards.length);
     if (pageReviews.length === 0 || reviewCards.length === 0) return;
     reviewCards.forEach((reviewCard, i) => {
@@ -134,11 +151,13 @@
       btn.className = 'ranksniper-btn';
       btn.textContent = 'Draft AI Response';
       btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, reviewCard); });
-      const lGXsGc = reviewCard.querySelector('div.lGXsGc');
-      if (lGXsGc) {
-        lGXsGc.appendChild(btn);
+      const isMaps = window.location.href.includes("google.com/maps");
+      if (isMaps) {
+        const replyBtn = reviewCard.querySelector("button[aria-label*='Reply']");
+        if (replyBtn) { replyBtn.insertAdjacentElement("afterend", btn); } else { reviewCard.appendChild(btn); }
       } else {
-        reviewCard.appendChild(btn);
+        const lGXsGc = reviewCard.querySelector("div.lGXsGc");
+        if (lGXsGc) { lGXsGc.appendChild(btn); } else { reviewCard.appendChild(btn); }
       }
       console.log('[RankSniper] Injected into:', reviewCard.querySelector('.ranksniper-btn')?.parentElement?.className);
     });
@@ -165,4 +184,7 @@
 
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
 })();
+
+
+
 
