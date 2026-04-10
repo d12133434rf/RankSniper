@@ -1,6 +1,6 @@
 ﻿/* RankSniper Panel CSS */
 
-.ranksniper-btn { display: inline-flex !important; align-items: center !important; background: #1a73e8 !important; color: #fff !important; border: none !important; border-radius: 4px !important; padding: 6px 14px !important; font-size: 13px !important; font-weight: 600 !important; cursor: pointer !important; margin-top: 8px !important; font-family: "Google Sans", system-ui, sans-serif !important; }
+.ranksniper-btn { display: inline-flex !important; align-items: center !important; background: #1a73e8 !important; color: #fff !important; border: none !important; border-radius: 4px !important; padding: 6px 14px !important; font-size: 13px !important; font-weight: 600 !important; cursor: pointer !important; margin-left: 8px !important; font-family: "Google Sans", system-ui, sans-serif !important; vertical-align: middle !important; }
 .ranksniper-btn:hover { background: #1557b0 !important; }
 .ranksniper-btn:disabled { opacity: 0.7 !important; cursor: not-allowed !important; }
 
@@ -59,6 +59,7 @@ div.lGXsGc { display: flex !important; align-items: center !important; flex-wrap
 .rs-notice-info { background: #3b82f6 !important; color: #fff !important; }
 
 
-.ranksniper-btn { display: inline-flex !important; align-items: center !important; background: #1a73e8 !important; color: #fff !important; border: none !important; border-radius: 4px !important; padding: 6px 14px !important; font-size: 13px !important; font-weight: 600 !important; cursor: pointer !important; margin-top: 8px !important; font-family: "Google Sans", system-ui, sans-serif !important; }
+.ranksniper-btn { display: inline-flex !important; align-items: center !important; background: #1a73e8 !important; color: #fff !important; border: none !important; border-radius: 4px !important; padding: 6px 14px !important; font-size: 13px !important; font-weight: 600 !important; cursor: pointer !important; margin-left: 8px !important; font-family: "Google Sans", system-ui, sans-serif !important; vertical-align: middle !important; }
+
 
 
