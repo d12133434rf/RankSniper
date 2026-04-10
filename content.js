@@ -144,7 +144,16 @@
     });
   }
 
-  const observer = new MutationObserver(() => { clearTimeout(window._rsInjectTimer); window._rsInjectTimer = setTimeout(injectButtons, 500); });
+  const observer = new MutationObserver(() => { clearTimeout(window._rsInjectTimer); window._rsInjectTimer = setTimeout(() => { injectButtons(); repositionButton(); }, 300); });
+
+  function repositionButton() {
+    const btn = document.querySelector('.ranksniper-btn');
+    if (!btn) return;
+    const cancelBtn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Cancel');
+    if (cancelBtn && btn.parentElement !== cancelBtn.parentElement) {
+      cancelBtn.insertAdjacentElement('afterend', btn);
+    }
+  }
   observer.observe(document.body, { subtree: true, childList: true });
 
   async function init() {
@@ -156,3 +165,4 @@
 
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
 })();
+
