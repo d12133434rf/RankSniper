@@ -1,4 +1,4 @@
-// RankSniper - Content Script v1.29
+// RankSniper - Content Script v1.30
 (function () {
   let businessProfile = null;
   let geminiApiKey = null;
@@ -66,19 +66,10 @@
     finally { btn.disabled = false; btn.textContent = 'Draft AI Response'; }
   }
 
-function pasteIntoTextarea(text) {
-    const ta = document.querySelector('textarea');
-    if (ta && !ta.closest('iframe')) {
-      ta.focus();
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
-      setter.call(ta, text);
-      ta.dispatchEvent(new Event('input', { bubbles: true }));
-      ta.dispatchEvent(new Event('change', { bubbles: true }));
-      showNotice('Pasted! Click Submit.', 'success');
-    } else {
-      navigator.clipboard.writeText(text);
+  function pasteIntoTextarea(text) {
+    navigator.clipboard.writeText(text).then(() => {
       showNotice('Copied! Click the reply box and press Ctrl+V to paste.', 'info');
-    }
+    });
   }
 
   function showPanel(card, responseText, reviewData) {
@@ -173,7 +164,7 @@ function pasteIntoTextarea(text) {
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.29 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
+    console.log('[RankSniper] v1.30 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
     setTimeout(injectButtons, 2000);
     setTimeout(injectButtons, 4000);
   }
