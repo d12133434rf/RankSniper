@@ -1,4 +1,4 @@
-{
+﻿{
   "manifest_version": 3,
   "name": "RankSniper - Google Review AI Responder",
   "version": "1.0.0",
@@ -39,3 +39,4 @@
     "128": "icons/icon128.png"
   }
 }
+
