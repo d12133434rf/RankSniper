@@ -71,6 +71,7 @@
   }
   function showNotice(msg,type){document.getElementById("rs-notice")?.remove();const n=document.createElement("div");n.id="rs-notice";n.className="rs-notice rs-notice-"+(type||"info");n.textContent=msg;document.body.appendChild(n);setTimeout(()=>n.remove(),4000);}
   function injectButtons() {
+    observer.disconnect();
     const isMaps = window.location.href.includes("google.com/maps");
     const reviews = isMaps ? getMapsReviews() : getReviewsFromPageData();
     const cards = [...document.querySelectorAll(isMaps ? "[data-review-id]" : "div.OUCuxb")];
@@ -98,5 +99,7 @@
     console.log("[RankSniper] v1.25 loaded. API key:", geminiApiKey ? "OK" : "MISSING");
     setTimeout(injectButtons, 2000);
   }
+  observer.observe(document.body, { subtree:true, childList:true });
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", init) : init();
 })();
+
