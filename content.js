@@ -1,4 +1,4 @@
-// RankSniper - Content Script v1.21
+﻿// RankSniper - Content Script v1.22
 (function () {
   const GEMINI_API_KEY = 'AIzaSyDjrxPKNJB3o_7vac-JlG2aFdPjldZgYJQ';
   const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
@@ -124,7 +124,7 @@
   function injectButtons() {
     const pageReviews = getReviewsFromPageData();
     const containers = findReviewContainers();
-    console.log('[RankSniper] v1.21 - reviews from JSON:', pageReviews.length, '| DOM containers:', containers.length);
+    console.log('[RankSniper] v1.22 - reviews from JSON:', pageReviews.length, '| DOM containers:', containers.length);
     if (pageReviews.length === 0 || containers.length === 0) return;
     containers.forEach((container, i) => {
       if (container.querySelector('.ranksniper-btn')) return;
@@ -141,9 +141,10 @@
   observer.observe(document.body, { subtree: true, childList: true });
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.21 loaded. Profile:', businessProfile ? '?' : '?? Not set');
+    console.log('[RankSniper] v1.22 loaded. Profile:', businessProfile ? '?' : '?? Not set');
     setTimeout(injectButtons, 1000);
     setTimeout(injectButtons, 2500);
   }
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
 })();
+
