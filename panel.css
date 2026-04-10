@@ -74,3 +74,11 @@ div.lGXsGc { display: flex !important; align-items: center !important; flex-wrap
 .rs-notice-error { background: #ef4444 !important; color: #fff !important; }
 .rs-notice-info { background: #3b82f6 !important; color: #fff !important; }
 
+
+.ranksniper-btn {
+  display: block !important;
+  margin: 8px 0 0 0 !important;
+  width: auto !important;
+  position: static !important;
+  float: none !important;
+}
