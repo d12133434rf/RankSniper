@@ -1,4 +1,4 @@
-﻿// RankSniper - Content Script v1.22
+﻿// RankSniper - Content Script v1.23
 (function () {
   let businessProfile = null;
   let geminiApiKey = null;
@@ -35,12 +35,6 @@
     }
   }
 
-  function findReviewContainers() {
-    const byReviewId = document.querySelectorAll('[data-review-id]');
-    if (byReviewId.length > 0) return [...byReviewId];
-    return [...document.querySelectorAll('div.OUCuxb')];
-  }
-
   async function callGemini(reviewData) {
     if (!geminiApiKey) throw new Error('No API key. Open RankSniper popup and enter your Gemini API key.');
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=' + geminiApiKey;
@@ -65,22 +59,14 @@
     return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Could not generate response.';
   }
 
-  function createSniperButton(reviewData, container) {
-    const btn = document.createElement('button');
-    btn.className = 'ranksniper-btn';
-    btn.textContent = 'Draft AI Response';
-    btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, container); });
-    return btn;
-  }
-
-  async function handleDraftClick(btn, reviewData, container) {
+  async function handleDraftClick(btn, reviewData, reviewCard) {
     await loadProfile();
     console.log('[RankSniper] Generating for:', reviewData.reviewerName, '| rating:', reviewData.rating);
     btn.disabled = true;
     btn.textContent = 'Generating...';
     try {
       const responseText = await callGemini(reviewData);
-      showPanel(container, responseText, btn, reviewData);
+      showPanel(reviewCard, responseText, reviewData);
     } catch (err) {
       console.error('[RankSniper]', err);
       showNotice('Error: ' + err.message, 'error');
@@ -90,18 +76,18 @@
     }
   }
 
-  function showPanel(container, responseText, sniperBtn, reviewData) {
-    container.querySelector('.rs-panel')?.remove();
+  function showPanel(reviewCard, responseText, reviewData) {
+    reviewCard.querySelector('.rs-panel')?.remove();
     const panel = document.createElement('div');
     panel.className = 'rs-panel';
     const uid = Date.now();
     panel.innerHTML = '<div class="rs-panel-header"><span class="rs-panel-logo">RankSniper</span><div class="rs-panel-badges"><span class="rs-badge rs-badge-seo">SEO Optimized</span></div><button class="rs-panel-close">X</button></div><div class="rs-panel-body"><textarea class="rs-response-text" rows="6">' + responseText + '</textarea><div class="rs-panel-actions"><button class="rs-copy-btn">Copy</button><button class="rs-paste-btn">Paste into Reply Box</button><button class="rs-regen-btn">Regenerate</button></div><div class="rs-keywords-row"><span class="rs-keywords-label">Keywords used:</span><span class="rs-keywords-list" id="rs-kw-' + uid + '"></span></div></div>';
-    container.closest('div.OUCuxb') ? container.closest('div.OUCuxb').appendChild(panel) : container.appendChild(panel);
+    reviewCard.appendChild(panel);
     setTimeout(() => { const kwEl = panel.querySelector('#rs-kw-' + uid); if (kwEl) extractAndShowKeywords(kwEl, responseText); }, 100);
     panel.querySelector('.rs-panel-close').addEventListener('click', () => panel.remove());
     panel.querySelector('.rs-copy-btn').addEventListener('click', () => { navigator.clipboard.writeText(panel.querySelector('.rs-response-text').value); const b = panel.querySelector('.rs-copy-btn'); b.textContent = 'Copied!'; setTimeout(() => b.textContent = 'Copy', 2000); });
-    panel.querySelector('.rs-paste-btn').addEventListener('click', () => { pasteIntoReplyBox(container, panel.querySelector('.rs-response-text').value); });
-    panel.querySelector('.rs-regen-btn').addEventListener('click', async () => { panel.remove(); const freshBtn = container.querySelector('.ranksniper-btn'); if (freshBtn) await handleDraftClick(freshBtn, reviewData, container); });
+    panel.querySelector('.rs-paste-btn').addEventListener('click', () => { pasteIntoReplyBox(reviewCard, panel.querySelector('.rs-response-text').value); });
+    panel.querySelector('.rs-regen-btn').addEventListener('click', async () => { panel.remove(); const freshBtn = reviewCard.querySelector('.ranksniper-btn'); if (freshBtn) await handleDraftClick(freshBtn, reviewData, reviewCard); });
   }
 
   function extractAndShowKeywords(el, text) {
@@ -114,13 +100,13 @@
     el.innerHTML = keywords.map(k => '<span class="rs-keyword-tag">' + k + '</span>').join('') || '<span style="color:#6b7280">None detected</span>';
   }
 
-  function pasteIntoReplyBox(container, text) {
-    const replyBtn = container.querySelector('div.lGXsGc button');
+  function pasteIntoReplyBox(reviewCard, text) {
+    const replyBtn = reviewCard.querySelector('div.lGXsGc button');
     if (replyBtn) replyBtn.click();
     setTimeout(() => {
-      const textarea = document.querySelector('textarea[aria-label*="eply"], textarea[placeholder*="eply"]') || document.querySelector('textarea') || container.querySelector('[contenteditable="true"]');
+      const textarea = document.querySelector('textarea[aria-label*="eply"], textarea[placeholder*="eply"]') || document.querySelector('textarea') || reviewCard.querySelector('[contenteditable="true"]');
       if (textarea) { textarea.focus(); if (textarea.tagName === 'TEXTAREA') { textarea.value = text; textarea.dispatchEvent(new Event('input', { bubbles: true })); textarea.dispatchEvent(new Event('change', { bubbles: true })); } else { textarea.innerText = text; textarea.dispatchEvent(new Event('input', { bubbles: true })); } showNotice('Response pasted! Click Submit to post.', 'success'); }
-      else { navigator.clipboard.writeText(text); showNotice('Copied - paste manually into the reply box.', 'info'); }
+      else { navigator.clipboard.writeText(text); showNotice('Copied - paste manually.', 'info'); }
     }, 800);
   }
 
@@ -136,18 +122,25 @@
 
   function injectButtons() {
     const pageReviews = getReviewsFromPageData();
-    const containers = findReviewContainers();
-    console.log('[RankSniper] v1.22 - reviews:', pageReviews.length, '| containers:', containers.length);
-    if (pageReviews.length === 0 || containers.length === 0) return;
-    containers.forEach((container, i) => {
-      if (container.querySelector('.ranksniper-btn')) return;
-      if (container.innerText?.toLowerCase().includes('owner replied')) return;
+    const reviewCards = [...document.querySelectorAll('div.OUCuxb')];
+    console.log('[RankSniper] v1.23 - reviews:', pageReviews.length, '| cards:', reviewCards.length);
+    if (pageReviews.length === 0 || reviewCards.length === 0) return;
+    reviewCards.forEach((reviewCard, i) => {
+      if (reviewCard.querySelector('.ranksniper-btn')) return;
+      if (reviewCard.innerText?.toLowerCase().includes('owner replied')) return;
       const reviewData = pageReviews[i] || pageReviews[0];
       if (!reviewData) return;
-      console.log('[RankSniper] Injecting:', reviewData.reviewerName, '| rating:', reviewData.rating);
-      const btn = createSniperButton(reviewData, container);
-      const replyBtn = container.querySelector('div.lGXsGc button');
-      const targetRow = container.querySelector('div.lGXsGc'); if (targetRow) { targetRow.appendChild(btn); } else { container.appendChild(btn); }
+      const btn = document.createElement('button');
+      btn.className = 'ranksniper-btn';
+      btn.textContent = 'Draft AI Response';
+      btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, reviewCard); });
+      const lGXsGc = reviewCard.querySelector('div.lGXsGc');
+      if (lGXsGc) {
+        lGXsGc.appendChild(btn);
+      } else {
+        reviewCard.appendChild(btn);
+      }
+      console.log('[RankSniper] Injected into:', reviewCard.querySelector('.ranksniper-btn')?.parentElement?.className);
     });
   }
 
@@ -156,17 +149,10 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.22 loaded. Profile:', businessProfile ? 'OK' : 'Not set', '| API key:', geminiApiKey ? 'OK' : 'MISSING - open popup to add key');
+    console.log('[RankSniper] v1.23 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
     setTimeout(injectButtons, 1000);
     setTimeout(injectButtons, 2500);
   }
 
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
 })();
-
-
-
-
-
-
-
