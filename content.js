@@ -143,7 +143,8 @@
     console.log('[RankSniper] v1.23 - reviews:', pageReviews.length, '| cards:', reviewCards.length);
     if (pageReviews.length === 0 || reviewCards.length === 0) return;
     reviewCards.forEach((reviewCard, i) => {
-      if (reviewCard.querySelector('.ranksniper-btn')) return;
+      if (reviewCard.dataset.rsDone) return;
+      if (reviewCard.querySelector('.ranksniper-btn')) { reviewCard.dataset.rsDone = '1'; return; }
       if (reviewCard.innerText?.toLowerCase().includes('owner replied')) return;
       const reviewData = pageReviews[i] || pageReviews[0];
       if (!reviewData) return;
@@ -161,6 +162,7 @@
         const lGXsGc = reviewCard.querySelector("div.lGXsGc");
         if (lGXsGc) { lGXsGc.appendChild(btn); } else { reviewCard.appendChild(btn); }
       }
+      reviewCard.dataset.rsDone = '1';
       console.log('[RankSniper] Injected into:', reviewCard.querySelector('.ranksniper-btn')?.parentElement?.className);
     });
   }
@@ -186,6 +188,8 @@
 
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
 })();
+
+
 
 
 
