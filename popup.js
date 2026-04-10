@@ -1,5 +1,4 @@
 ﻿document.addEventListener("DOMContentLoaded", () => {
-  chrome.storage.local.get(["geminiApiKey"], r => { if (r.geminiApiKey && document.getElementById("geminiApiKey")) document.getElementById("geminiApiKey").value = r.geminiApiKey; });
   chrome.storage.local.get(["ranksniperProfile", "ranksniperUsage", "ranksniperPlan"], (result) => {
     const profile = result.ranksniperProfile || {};
     const usage = result.ranksniperUsage || 0;
@@ -29,8 +28,6 @@
     const saveBtn = document.getElementById("save-profile");
     saveBtn.textContent = "Saving...";
     saveBtn.disabled = true;
-    const apiKey = document.getElementById("geminiApiKey") ? document.getElementById("geminiApiKey").value.trim() : null;
-    if (apiKey) chrome.storage.local.set({ geminiApiKey: apiKey });
     chrome.storage.local.set({ ranksniperProfile: profile }, () => {
       if (chrome.runtime.lastError) { saveBtn.textContent = "Error"; saveBtn.disabled = false; return; }
       saveBtn.textContent = "Saved!";
@@ -38,4 +35,3 @@
     });
   });
 });
-
