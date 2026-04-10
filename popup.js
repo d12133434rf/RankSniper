@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+﻿document.addEventListener('DOMContentLoaded', () => {
 
   // Load saved profile
   chrome.storage.local.get(['ranksniperProfile', 'ranksniperUsage', 'ranksniperPlan'], (result) => {
@@ -11,8 +11,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (profile.businessType) document.getElementById('businessType').value = profile.businessType;
     if (profile.services) document.getElementById('services').value = profile.services;
     if (profile.tone) document.getElementById('tone').value = profile.tone;
+    if (result.geminiApiKey) document.getElementById('geminiApiKey').value = result.geminiApiKey;
 
-    const limit = plan === 'pro' ? '∞' : '5';
+    const limit = plan === 'pro' ? 'âˆž' : '5';
     document.getElementById('usage-text').textContent = `${usage} / ${limit} this month`;
     document.getElementById('usage-fill').style.width = plan === 'pro' ? '100%' : `${Math.min((usage / 5) * 100, 100)}%`;
     document.getElementById('usage-fill').style.background = plan === 'pro'
@@ -44,14 +45,14 @@ document.addEventListener('DOMContentLoaded', () => {
     saveBtn.textContent = 'Saving...';
     saveBtn.disabled = true;
 
-    chrome.storage.local.set({ ranksniperProfile: profile }, () => {
+    chrome.storage.local.set({ ranksniperProfile: profile, geminiApiKey: document.getElementById('geminiApiKey').value.trim() }, () => {
       if (chrome.runtime.lastError) {
-        saveBtn.textContent = '❌ Error saving';
+        saveBtn.textContent = 'âŒ Error saving';
         saveBtn.disabled = false;
         console.error(chrome.runtime.lastError);
         return;
       }
-      saveBtn.textContent = '✅ Saved!';
+      saveBtn.textContent = 'âœ… Saved!';
       setTimeout(() => {
         saveBtn.textContent = 'Save Profile';
         saveBtn.disabled = false;
@@ -60,3 +61,4 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 });
+
