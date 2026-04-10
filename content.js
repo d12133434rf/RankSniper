@@ -1,4 +1,4 @@
-// RankSniper - Content Script v1.27
+// RankSniper - Content Script v1.28
 (function () {
   let businessProfile = null;
   let geminiApiKey = null;
@@ -30,13 +30,12 @@
     } catch (e) { return []; }
   }
 
-  function getMapsReviews() {
+  function getSearchReviews() {
     try {
-      return [...document.querySelectorAll('[data-review-id]')].map(card => ({
-        reviewId: card.getAttribute('data-review-id'),
-        reviewerName: (card.querySelector('.al6Kxe') || {innerText:'Customer'}).innerText.split('\n')[0].trim() || 'Customer',
-        rating: parseInt((card.querySelector('.kvMYJc') || {getAttribute:()=>'5'}).getAttribute('aria-label')) || 5,
-        reviewText: (card.querySelector('.wiI7pd') || {innerText:''}).innerText.trim()
+      return [...document.querySelectorAll('.bwb7ce')].map(card => ({
+        reviewerName: (card.querySelector('.Vpc5Fe') || {innerText:'Customer'}).innerText.trim() || 'Customer',
+        rating: parseInt((card.querySelector('[aria-label*="out of"]') || {getAttribute:()=>'5'}).getAttribute('aria-label')) || 5,
+        reviewText: (card.querySelector('.OA1nbd') || {innerText:''}).innerText.trim()
       })).filter(r => r.reviewText.length > 0);
     } catch (e) { return []; }
   }
@@ -91,7 +90,7 @@
       setTimeout(() => b.textContent = 'Copy', 2000);
     });
     panel.querySelector('.rs-paste-btn').addEventListener('click', () => {
-      const rb = card.querySelector('div.lGXsGc button') || card.querySelector('button[aria-label*="Reply"]');
+      const rb = card.querySelector('.F87tLd') || card.querySelector('div.lGXsGc button') || card.querySelector('button[aria-label*="Reply"]');
       if (rb) rb.click();
       setTimeout(() => {
         const ta = document.querySelector('textarea[aria-label*="eply"],textarea[placeholder*="eply"]') || document.querySelector('textarea') || card.querySelector('[contenteditable="true"]');
@@ -117,9 +116,21 @@
   }
 
   function injectButtons() {
-    const isMaps = window.location.href.includes('google.com/maps');
-    const reviews = isMaps ? getMapsReviews() : getReviewsFromPageData();
-    const cards = [...document.querySelectorAll(isMaps ? '[data-review-id]' : 'div.OUCuxb')];
+    const url = window.location.href;
+    const isSearch = url.includes('google.com/search');
+    const isBusiness = url.includes('business.google.com');
+
+    let reviews = [];
+    let cards = [];
+
+    if (isSearch) {
+      reviews = getSearchReviews();
+      cards = [...document.querySelectorAll('.bwb7ce')];
+    } else if (isBusiness) {
+      reviews = getReviewsFromPageData();
+      cards = [...document.querySelectorAll('div.OUCuxb')];
+    }
+
     cards.forEach((card, i) => {
       if (card.querySelector('.ranksniper-btn')) return;
       const reviewData = reviews[i] || reviews[0];
@@ -128,8 +139,8 @@
       btn.className = 'ranksniper-btn';
       btn.textContent = 'Draft AI Response';
       btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, card); });
-      if (isMaps) {
-        const rb = card.querySelector('button[aria-label*="Reply"]');
+      if (isSearch) {
+        const rb = card.querySelector('.F87tLd');
         if (rb) rb.insertAdjacentElement('afterend', btn);
         else card.appendChild(btn);
       } else {
@@ -150,8 +161,9 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.27 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
+    console.log('[RankSniper] v1.28 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
     setTimeout(injectButtons, 2000);
+    setTimeout(injectButtons, 4000);
   }
 
   document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
