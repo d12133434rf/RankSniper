@@ -1,5 +1,6 @@
 ﻿// RankSniper - Content Script v1.26
 (function () {
+  const injectedIds = new Set();
   let businessProfile = null;
   let geminiApiKey = null;
   function loadProfile() {
@@ -83,6 +84,7 @@
       btn.className = "ranksniper-btn";
       btn.textContent = "Draft AI Response";
       btn.addEventListener("click", async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, card); });
+      injectedIds.add(cardId);
       if (isMaps) {
         const rb = card.querySelector("button[aria-label*=\"Reply\"]");
         if (rb) rb.insertAdjacentElement("afterend", btn); else card.appendChild(btn);
@@ -101,4 +103,5 @@
   }
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", init) : init();
 })();
+
 
