@@ -1,4 +1,4 @@
-// RankSniper - Content Script v1.32
+// RankSniper - Content Script v1.33
 (function () {
   let businessProfile = null;
   let geminiApiKey = null;
@@ -89,15 +89,14 @@
     const type = p.businessType || 'local business';
     const tone = p.tone || 'friendly';
     const firstName = reviewData.reviewerName.split(' ')[0];
+    const custom = p.customInstructions ? '\nAdditional instructions: ' + p.customInstructions : '';
 
     let prompt;
     if (instruction && previousResponse) {
-      // Refine mode — user gave instruction
-      prompt = 'You wrote this response to a Google review for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants you to change it: "' + instruction + '"\n\nRewrite the response keeping it natural and human. Start with "Hi ' + firstName + ',". Under 150 words. Avoid em dashes. Include city (' + city + ') and business name (' + biz + ') naturally.\n\nWrite only the new response, nothing else.';
+      prompt = 'You wrote this response to a Google review for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants you to change it: "' + instruction + '"\n\nRewrite the response keeping it natural and human. Start with "Hi ' + firstName + ',". Under 150 words. Avoid em dashes. Include city (' + city + ') and business name (' + biz + ') naturally.' + custom + '\n\nWrite only the new response, nothing else.';
     } else {
-      // Fresh generation
       const g = reviewData.rating <= 2 ? 'Negative review: apologize sincerely and explain improvements.' : reviewData.rating === 3 ? 'Mixed review: thank them and acknowledge issues.' : 'Positive review: thank them warmly.';
-      prompt = 'Respond to this Google review for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + ',". ' + g + ' Include city and business name. Under 150 words. Write in a natural, human way - avoid em dashes, overly formal language, and AI-sounding phrases. Use simple conversational sentences.\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response.';
+      prompt = 'Respond to this Google review for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + ',". ' + g + ' Include city and business name. Under 150 words. Write in a natural, human way - avoid em dashes, overly formal language, and AI-sounding phrases. Use simple conversational sentences.' + custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response.';
     }
 
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 200, temperature: 0.7 } }) });
@@ -175,28 +174,24 @@
     }, 100);
 
     panel.querySelector('.rs-panel-close').addEventListener('click', () => panel.remove());
-
     panel.querySelector('.rs-copy-btn').addEventListener('click', () => {
       navigator.clipboard.writeText(panel.querySelector('.rs-response-text').value);
       const b = panel.querySelector('.rs-copy-btn');
       b.textContent = 'Copied!';
       setTimeout(() => b.textContent = 'Copy', 2000);
     });
-
     panel.querySelector('.rs-paste-btn').addEventListener('click', () => {
       const rb = card.querySelector('.F87tLd') || card.querySelector('div.lGXsGc button') || card.querySelector('button[aria-label*="Reply"]');
       if (rb) rb.click();
       const text = panel.querySelector('.rs-response-text').value;
       setTimeout(() => pasteIntoTextarea(text), 1000);
     });
-
     panel.querySelector('.rs-regen-btn').addEventListener('click', async () => {
       panel.remove();
       const fb = card.querySelector('.ranksniper-btn');
       if (fb) await handleDraftClick(fb, reviewData, card);
     });
 
-    // Chat / refine functionality
     const chatInput = panel.querySelector('.rs-chat-input');
     const chatSend = panel.querySelector('.rs-chat-send');
     const chatHistory = panel.querySelector('#rs-chat-' + uid);
@@ -205,36 +200,21 @@
       const instruction = chatInput.value.trim();
       if (!instruction) return;
       const currentResponse = panel.querySelector('.rs-response-text').value;
-
-      // Show user message
       const userMsg = document.createElement('div');
       userMsg.style.cssText = 'font-size:11px;color:#60a5fa;margin-bottom:4px;';
       userMsg.textContent = 'You: ' + instruction;
       chatHistory.appendChild(userMsg);
-
       chatInput.value = '';
       chatSend.disabled = true;
       chatSend.textContent = '...';
-
       try {
         await loadProfile();
         const newResponse = await callGemini(reviewData, instruction, currentResponse);
-
-        // Update textarea
         panel.querySelector('.rs-response-text').value = newResponse;
-
-        // Update score
-        const newScore = scoreResponse(newResponse, businessProfile);
-        const newColor = newScore >= 80 ? '#22c55e' : newScore >= 60 ? '#f59e0b' : '#ef4444';
-        const scoreBadge = panel.querySelector('[style*="Score:"]') || panel.querySelectorAll('span')[1];
-        if (scoreBadge) { scoreBadge.textContent = 'Score: ' + newScore + '/100'; scoreBadge.style.color = newColor; }
-
-        // Show AI reply in chat
         const aiMsg = document.createElement('div');
         aiMsg.style.cssText = 'font-size:11px;color:#22c55e;margin-bottom:4px;';
         aiMsg.textContent = 'Done! Response updated above.';
         chatHistory.appendChild(aiMsg);
-
         saveToHistory(reviewData.reviewerName, reviewData.rating, reviewData.reviewText, newResponse);
       } catch (err) {
         const errMsg = document.createElement('div');
@@ -305,7 +285,7 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.32 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
+    console.log('[RankSniper] v1.33 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
     setTimeout(injectButtons, 2000);
     setTimeout(injectButtons, 4000);
   }
