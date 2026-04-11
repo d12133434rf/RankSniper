@@ -1,4 +1,4 @@
-// RankSniper - Content Script v1.34
+// RankSniper - Content Script v1.36
 (function () {
   let businessProfile = null;
   let geminiApiKey = null;
@@ -28,16 +28,47 @@
   }
 
   function scoreResponse(text, profile) {
-    let score = 0;
+    let score = 60; // base score — must earn the rest
     const lower = text.toLowerCase();
     const words = text.split(/\s+/).length;
-    if (words >= 50 && words <= 150) score += 30;
-    else if (words >= 30) score += 15;
-    if (lower.startsWith('hi ') || lower.includes('thank you')) score += 20;
-    if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 20;
-    if (profile?.city && lower.includes(profile.city.toLowerCase())) score += 20;
-    if (!text.includes('—')) score += 10;
-    return Math.min(score, 100);
+
+    // Length scoring — ideal 60-120 words
+    if (words >= 60 && words <= 120) score += 15;
+    else if (words >= 40 && words < 60) score += 8;
+    else if (words > 120 && words <= 160) score += 8;
+    else if (words < 40) score += 0; // too short
+    else score += 2; // way too long
+
+    // Personalized greeting (not generic "Hi there")
+    if (lower.startsWith('hi ') && !lower.startsWith('hi there')) score += 8;
+    else if (lower.startsWith('hi there')) score += 3;
+
+    // Has city name
+    if (profile?.city && lower.includes(profile.city.toLowerCase())) score += 6;
+
+    // Has business name
+    if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 6;
+
+    // Has call to action
+    const hasCTA = lower.includes('come back') || lower.includes('visit us') || lower.includes('see you') ||
+      lower.includes('give us another') || lower.includes('contact us') || lower.includes('stop by') ||
+      lower.includes('welcome you back') || lower.includes('hope to see') || lower.includes('love to have you');
+    if (hasCTA) score += 8;
+
+    // No em dashes (human-sounding)
+    if (!text.includes('—')) score += 3;
+
+    // Penalize generic AI phrases heavily
+    const genericPhrases = ['we strive to', 'we apologize for any inconvenience', 'at your earliest convenience',
+      'do not hesitate', 'please do not hesitate', 'we are committed to', 'it is our goal',
+      'we take pride', 'rest assured', 'we value your feedback', 'thank you for bringing this to our attention'];
+    const genericCount = genericPhrases.filter(p => lower.includes(p)).length;
+    score -= genericCount * 8;
+
+    // Penalize if response is clearly off-topic (very short or no greeting at all)
+    if (!lower.includes('hi') && !lower.includes('thank')) score -= 10;
+
+    return Math.min(Math.max(Math.round(score), 0), 100);
   }
 
   function getKeywords(text, profile) {
@@ -286,7 +317,7 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.34 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
+    console.log('[RankSniper] v1.36 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
     setTimeout(injectButtons, 2000);
     setTimeout(injectButtons, 4000);
   }
