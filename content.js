@@ -34,7 +34,7 @@
     try {
       return [...document.querySelectorAll('.bwb7ce')].map(card => ({
         reviewerName: (card.querySelector('.Vpc5Fe') || {innerText:'Customer'}).innerText.trim() || 'Customer',
-        rating: parseInt((card.querySelector('[aria-label*="out of"]') || {getAttribute:()=>'5'}).getAttribute('aria-label')) || 5,
+        rating: parseFloat(((card.querySelector('[aria-label*="out of"]') || {getAttribute:()=>'5 out of 5'}).getAttribute('aria-label')).match(/[\d.]+/)?.[0] || '5'),
         reviewText: (card.querySelector('.OA1nbd') || {innerText:''}).innerText.trim()
       })).filter(r => r.reviewText.length > 0);
     } catch (e) { return []; }
