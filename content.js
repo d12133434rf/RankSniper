@@ -1,4 +1,4 @@
-// RankSniper - Content Script v1.33
+// RankSniper - Content Script v1.34
 (function () {
   let businessProfile = null;
   let geminiApiKey = null;
@@ -111,7 +111,6 @@
     btn.textContent = 'Generating...';
     try {
       const responseText = await callGemini(reviewData, null, null);
-      saveToHistory(reviewData.reviewerName, reviewData.rating, reviewData.reviewText, responseText);
       showPanel(card, responseText, reviewData);
     } catch (err) { showNotice('Error: ' + err.message, 'error'); }
     finally { btn.disabled = false; btn.textContent = 'Draft AI Response'; }
@@ -175,15 +174,18 @@
 
     panel.querySelector('.rs-panel-close').addEventListener('click', () => panel.remove());
     panel.querySelector('.rs-copy-btn').addEventListener('click', () => {
-      navigator.clipboard.writeText(panel.querySelector('.rs-response-text').value);
+      const text = panel.querySelector('.rs-response-text').value;
+      navigator.clipboard.writeText(text);
+      saveToHistory(reviewData.reviewerName, reviewData.rating, reviewData.reviewText, text);
       const b = panel.querySelector('.rs-copy-btn');
       b.textContent = 'Copied!';
       setTimeout(() => b.textContent = 'Copy', 2000);
     });
     panel.querySelector('.rs-paste-btn').addEventListener('click', () => {
+      const text = panel.querySelector('.rs-response-text').value;
+      saveToHistory(reviewData.reviewerName, reviewData.rating, reviewData.reviewText, text);
       const rb = card.querySelector('.F87tLd') || card.querySelector('div.lGXsGc button') || card.querySelector('button[aria-label*="Reply"]');
       if (rb) rb.click();
-      const text = panel.querySelector('.rs-response-text').value;
       setTimeout(() => pasteIntoTextarea(text), 1000);
     });
     panel.querySelector('.rs-regen-btn').addEventListener('click', async () => {
@@ -215,7 +217,6 @@
         aiMsg.style.cssText = 'font-size:11px;color:#22c55e;margin-bottom:4px;';
         aiMsg.textContent = 'Done! Response updated above.';
         chatHistory.appendChild(aiMsg);
-        saveToHistory(reviewData.reviewerName, reviewData.rating, reviewData.reviewText, newResponse);
       } catch (err) {
         const errMsg = document.createElement('div');
         errMsg.style.cssText = 'font-size:11px;color:#ef4444;';
@@ -285,7 +286,7 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.33 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
+    console.log('[RankSniper] v1.34 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
     setTimeout(injectButtons, 2000);
     setTimeout(injectButtons, 4000);
   }
