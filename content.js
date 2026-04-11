@@ -1,4 +1,4 @@
-// RankSniper - Content Script v1.30
+// RankSniper - Content Script v1.31
 (function () {
   let businessProfile = null;
   let geminiApiKey = null;
@@ -11,6 +11,59 @@
         resolve(result);
       });
     });
+  }
+
+  function saveToHistory(reviewerName, rating, reviewText, response) {
+    chrome.storage.local.get(['rsHistory'], result => {
+      const history = result.rsHistory || [];
+      history.unshift({
+        date: new Date().toLocaleDateString(),
+        reviewerName,
+        rating,
+        reviewText: reviewText.substring(0, 100),
+        response,
+        business: businessProfile?.businessName || 'Unknown'
+      });
+      // Keep last 50
+      chrome.storage.local.set({ rsHistory: history.slice(0, 50) });
+    });
+  }
+
+  function scoreResponse(text, profile) {
+    let score = 0;
+    const lower = text.toLowerCase();
+    const words = text.split(/\s+/).length;
+
+    // Length score (ideal 80-150 words)
+    if (words >= 50 && words <= 150) score += 30;
+    else if (words >= 30) score += 15;
+
+    // Has greeting
+    if (lower.startsWith('hi ') || lower.includes('thank you')) score += 20;
+
+    // Has business name
+    if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 20;
+
+    // Has city
+    if (profile?.city && lower.includes(profile.city.toLowerCase())) score += 20;
+
+    // No em dashes
+    if (!text.includes('—')) score += 10;
+
+    return Math.min(score, 100);
+  }
+
+  function getKeywords(text, profile) {
+    const lower = text.toLowerCase();
+    const found = [];
+    if (profile?.city && lower.includes(profile.city.toLowerCase())) found.push(profile.city);
+    if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) found.push(profile.businessName);
+    if (profile?.services) {
+      for (const s of profile.services.split(',').map(x => x.trim())) {
+        if (s && lower.includes(s.toLowerCase())) found.push(s);
+      }
+    }
+    return found;
   }
 
   function getReviewsFromPageData() {
@@ -50,7 +103,7 @@
     const tone = p.tone || 'friendly';
     const firstName = reviewData.reviewerName.split(' ')[0];
     const g = reviewData.rating <= 2 ? 'Negative review: apologize sincerely and explain improvements.' : reviewData.rating === 3 ? 'Mixed review: thank them and acknowledge issues.' : 'Positive review: thank them warmly.';
-    const prompt = 'Respond to this Google review for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + ',". ' + g + ' Include city and business name. Under 150 words. Write in a natural, human way - avoid em dashes (—), overly formal language, and AI-sounding phrases. Use simple conversational sentences.\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response.';
+    const prompt = 'Respond to this Google review for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + ',". ' + g + ' Include city and business name. Under 150 words. Write in a natural, human way - avoid em dashes, overly formal language, and AI-sounding phrases. Use simple conversational sentences.\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response.';
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 200, temperature: 0.7 } }) });
     if (!res.ok) { const err = await res.json(); throw new Error(err?.error?.message || 'Gemini API error'); }
     const data = await res.json();
@@ -61,8 +114,11 @@
     await loadProfile();
     btn.disabled = true;
     btn.textContent = 'Generating...';
-    try { showPanel(card, await callGemini(reviewData), reviewData); }
-    catch (err) { showNotice('Error: ' + err.message, 'error'); }
+    try {
+      const responseText = await callGemini(reviewData);
+      saveToHistory(reviewData.reviewerName, reviewData.rating, reviewData.reviewText, responseText);
+      showPanel(card, responseText, reviewData);
+    } catch (err) { showNotice('Error: ' + err.message, 'error'); }
     finally { btn.disabled = false; btn.textContent = 'Draft AI Response'; }
   }
 
@@ -77,17 +133,21 @@
     const panel = document.createElement('div');
     panel.className = 'rs-panel';
     const uid = Date.now();
-    panel.innerHTML = '<div class="rs-panel-header"><span class="rs-panel-logo">RankSniper</span><div class="rs-panel-badges"><span class="rs-badge rs-badge-seo">SEO Optimized</span></div><button class="rs-panel-close">X</button></div><div class="rs-panel-body"><textarea class="rs-response-text" rows="6">' + responseText + '</textarea><div class="rs-panel-actions"><button class="rs-copy-btn">Copy</button><button class="rs-paste-btn">Paste into Reply Box</button><button class="rs-regen-btn">Regenerate</button></div><div class="rs-keywords-row"><span class="rs-keywords-label">Keywords used:</span><span class="rs-keywords-list" id="rs-kw-' + uid + '"></span></div></div>';
+    const score = scoreResponse(responseText, businessProfile);
+    const scoreColor = score >= 80 ? '#22c55e' : score >= 60 ? '#f59e0b' : '#ef4444';
+    const keywords = getKeywords(responseText, businessProfile);
+    const missingKeywords = [];
+    if (businessProfile?.city && !responseText.toLowerCase().includes(businessProfile.city.toLowerCase())) missingKeywords.push(businessProfile.city);
+    if (businessProfile?.businessName && !responseText.toLowerCase().includes(businessProfile.businessName.toLowerCase())) missingKeywords.push(businessProfile.businessName);
+
+    panel.innerHTML = '<div class="rs-panel-header"><span class="rs-panel-logo">RankSniper</span><div class="rs-panel-badges"><span class="rs-badge rs-badge-seo">SEO Optimized</span><span class="rs-score-badge" style="background:' + scoreColor + '20;border:1px solid ' + scoreColor + ';color:' + scoreColor + ';font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">Score: ' + score + '/100</span></div><button class="rs-panel-close">X</button></div><div class="rs-panel-body"><textarea class="rs-response-text" rows="6">' + responseText + '</textarea>' + (missingKeywords.length > 0 ? '<div style="font-size:11px;color:#f59e0b;margin-top:6px;">Tip: Consider adding: ' + missingKeywords.join(', ') + '</div>' : '') + '<div class="rs-panel-actions"><button class="rs-copy-btn">Copy</button><button class="rs-paste-btn">Paste into Reply Box</button><button class="rs-regen-btn">Regenerate</button></div><div class="rs-keywords-row"><span class="rs-keywords-label">Keywords used:</span><span class="rs-keywords-list" id="rs-kw-' + uid + '"></span></div></div>';
     card.appendChild(panel);
+
     setTimeout(() => {
       const kw = panel.querySelector('#rs-kw-' + uid);
-      if (kw) {
-        const p = businessProfile || {};
-        const lower = responseText.toLowerCase();
-        const tags = [p.city, p.businessName].concat((p.services || '').split(',').map(s => s.trim())).filter(k => k && lower.includes(k.toLowerCase()));
-        kw.innerHTML = tags.map(k => '<span class="rs-keyword-tag">' + k + '</span>').join('') || '<span style="color:#6b7280">None</span>';
-      }
+      if (kw) kw.innerHTML = keywords.map(k => '<span class="rs-keyword-tag">' + k + '</span>').join('') || '<span style="color:#6b7280">None</span>';
     }, 100);
+
     panel.querySelector('.rs-panel-close').addEventListener('click', () => panel.remove());
     panel.querySelector('.rs-copy-btn').addEventListener('click', () => {
       navigator.clipboard.writeText(panel.querySelector('.rs-response-text').value);
@@ -122,17 +182,8 @@
     const url = window.location.href;
     const isSearch = url.includes('google.com/search');
     const isBusiness = url.includes('business.google.com');
-
-    let reviews = [];
-    let cards = [];
-
-    if (isSearch) {
-      reviews = getSearchReviews();
-      cards = [...document.querySelectorAll('.bwb7ce')];
-    } else if (isBusiness) {
-      reviews = getReviewsFromPageData();
-      cards = [...document.querySelectorAll('div.OUCuxb')];
-    }
+    const reviews = isSearch ? getSearchReviews() : isBusiness ? getReviewsFromPageData() : [];
+    const cards = [...document.querySelectorAll(isSearch ? '.bwb7ce' : 'div.OUCuxb')];
 
     cards.forEach((card, i) => {
       if (card.querySelector('.ranksniper-btn')) return;
@@ -154,14 +205,13 @@
     });
   }
 
-let t = null;
+  let t = null;
   new MutationObserver((mutations) => {
     const hasNewNodes = mutations.some(m => m.addedNodes.length > 0);
     if (!hasNewNodes) return;
     clearTimeout(t);
     t = setTimeout(() => {
       injectButtons();
-      // Move button next to Cancel when reply box opens
       const cancelBtn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Cancel');
       const btn = document.querySelector('.ranksniper-btn');
       if (cancelBtn && btn && btn.parentElement !== cancelBtn.parentElement) {
@@ -172,7 +222,7 @@ let t = null;
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.30 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
+    console.log('[RankSniper] v1.31 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
     setTimeout(injectButtons, 2000);
     setTimeout(injectButtons, 4000);
   }
