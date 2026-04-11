@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-  // ── Tabs ──────────────────────────────────────────────────────────────────
+  // Tabs
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ── Load all profiles ─────────────────────────────────────────────────────
   let profiles = {};
   let activeProfileId = null;
 
@@ -19,8 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.storage.local.get(['rsProfiles', 'rsActiveProfile', 'ranksniperUsage', 'ranksniperPlan'], result => {
       profiles = result.rsProfiles || {};
       activeProfileId = result.rsActiveProfile || null;
-
-      // Migrate old single profile
       if (Object.keys(profiles).length === 0) {
         chrome.storage.local.get(['ranksniperProfile'], old => {
           if (old.ranksniperProfile) {
@@ -43,11 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sel = document.getElementById('profile-select');
     sel.innerHTML = '';
     const ids = Object.keys(profiles);
-    if (ids.length === 0) {
-      sel.innerHTML = '<option value="">No profiles</option>';
-      clearForm();
-      return;
-    }
+    if (ids.length === 0) { sel.innerHTML = '<option value="">No profiles</option>'; clearForm(); return; }
     ids.forEach(id => {
       const opt = document.createElement('option');
       opt.value = id;
@@ -59,7 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
     activeProfileId = currentId;
     sel.value = currentId;
     fillForm(profiles[currentId]);
-    // Save active profile for content script
     chrome.storage.local.set({ ranksniperProfile: profiles[currentId] });
   }
 
@@ -71,10 +63,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('businessType').value = p.businessType || '';
     document.getElementById('services').value = p.services || '';
     document.getElementById('tone').value = p.tone || 'friendly';
+    document.getElementById('customInstructions').value = p.customInstructions || '';
   }
 
   function clearForm() {
-    ['profileName','businessName','city','services'].forEach(id => document.getElementById(id).value = '');
+    ['profileName','businessName','city','services','customInstructions'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('businessType').value = '';
     document.getElementById('tone').value = 'friendly';
   }
@@ -87,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-new-profile').addEventListener('click', () => {
     const id = 'profile_' + Date.now();
-    profiles[id] = { profileName: 'New Profile', businessName: '', city: '', businessType: '', services: '', tone: 'friendly' };
+    profiles[id] = { profileName: 'New Profile', businessName: '', city: '', businessType: '', services: '', tone: 'friendly', customInstructions: '' };
     activeProfileId = id;
     chrome.storage.local.set({ rsProfiles: profiles, rsActiveProfile: id });
     renderProfileSelector();
@@ -97,10 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('btn-delete-profile').addEventListener('click', () => {
-    if (!activeProfileId || Object.keys(profiles).length <= 1) {
-      alert('You need at least one profile.');
-      return;
-    }
+    if (!activeProfileId || Object.keys(profiles).length <= 1) { alert('You need at least one profile.'); return; }
     if (!confirm('Delete this profile?')) return;
     delete profiles[activeProfileId];
     activeProfileId = Object.keys(profiles)[0] || null;
@@ -116,15 +106,13 @@ document.addEventListener('DOMContentLoaded', () => {
       businessType: document.getElementById('businessType').value,
       services: document.getElementById('services').value.trim(),
       tone: document.getElementById('tone').value,
+      customInstructions: document.getElementById('customInstructions').value.trim(),
     };
-
     if (!activeProfileId) activeProfileId = 'profile_' + Date.now();
     profiles[activeProfileId] = profile;
-
     const saveBtn = document.getElementById('save-profile');
     saveBtn.textContent = 'Saving...';
     saveBtn.disabled = true;
-
     chrome.storage.local.set({ rsProfiles: profiles, rsActiveProfile: activeProfileId, ranksniperProfile: profile }, () => {
       if (chrome.runtime.lastError) { saveBtn.textContent = 'Error'; saveBtn.disabled = false; return; }
       saveBtn.textContent = 'Saved!';
@@ -133,7 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ── Usage / Plan ──────────────────────────────────────────────────────────
   loadProfiles(result => {
     const usage = result.ranksniperUsage || 0;
     const plan = result.ranksniperPlan || 'free';
@@ -147,17 +134,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ── History ───────────────────────────────────────────────────────────────
   function loadHistory() {
     chrome.storage.local.get(['rsHistory'], result => {
       const history = result.rsHistory || [];
       const list = document.getElementById('history-list');
-      if (history.length === 0) {
-        list.innerHTML = '<div class="history-empty">No responses yet. Generate your first AI response!</div>';
-        return;
-      }
+      if (history.length === 0) { list.innerHTML = '<div class="history-empty">No responses yet. Generate your first AI response!</div>'; return; }
       const stars = r => r <= 1 ? '1 star' : r <= 2 ? '2 stars' : r <= 3 ? '3 stars' : r <= 4 ? '4 stars' : '5 stars';
-      list.innerHTML = history.map((h, i) => `
+      list.innerHTML = history.map(h => `
         <div class="history-item">
           <div class="history-meta">
             <span class="history-name">${h.reviewerName} - ${h.business}</span>
