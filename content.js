@@ -1,4 +1,4 @@
-// RankSniper - Content Script v1.31
+// RankSniper - Content Script v1.32
 (function () {
   let businessProfile = null;
   let geminiApiKey = null;
@@ -18,13 +18,11 @@
       const history = result.rsHistory || [];
       history.unshift({
         date: new Date().toLocaleDateString(),
-        reviewerName,
-        rating,
+        reviewerName, rating,
         reviewText: reviewText.substring(0, 100),
         response,
         business: businessProfile?.businessName || 'Unknown'
       });
-      // Keep last 50
       chrome.storage.local.set({ rsHistory: history.slice(0, 50) });
     });
   }
@@ -33,23 +31,12 @@
     let score = 0;
     const lower = text.toLowerCase();
     const words = text.split(/\s+/).length;
-
-    // Length score (ideal 80-150 words)
     if (words >= 50 && words <= 150) score += 30;
     else if (words >= 30) score += 15;
-
-    // Has greeting
     if (lower.startsWith('hi ') || lower.includes('thank you')) score += 20;
-
-    // Has business name
     if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 20;
-
-    // Has city
     if (profile?.city && lower.includes(profile.city.toLowerCase())) score += 20;
-
-    // No em dashes
     if (!text.includes('—')) score += 10;
-
     return Math.min(score, 100);
   }
 
@@ -93,7 +80,7 @@
     } catch (e) { return []; }
   }
 
-  async function callGemini(reviewData) {
+  async function callGemini(reviewData, instruction, previousResponse) {
     if (!geminiApiKey) throw new Error('No API key. Open RankSniper popup and enter your Gemini API key.');
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=' + geminiApiKey;
     const p = businessProfile || {};
@@ -102,8 +89,17 @@
     const type = p.businessType || 'local business';
     const tone = p.tone || 'friendly';
     const firstName = reviewData.reviewerName.split(' ')[0];
-    const g = reviewData.rating <= 2 ? 'Negative review: apologize sincerely and explain improvements.' : reviewData.rating === 3 ? 'Mixed review: thank them and acknowledge issues.' : 'Positive review: thank them warmly.';
-    const prompt = 'Respond to this Google review for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + ',". ' + g + ' Include city and business name. Under 150 words. Write in a natural, human way - avoid em dashes, overly formal language, and AI-sounding phrases. Use simple conversational sentences.\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response.';
+
+    let prompt;
+    if (instruction && previousResponse) {
+      // Refine mode — user gave instruction
+      prompt = 'You wrote this response to a Google review for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants you to change it: "' + instruction + '"\n\nRewrite the response keeping it natural and human. Start with "Hi ' + firstName + ',". Under 150 words. Avoid em dashes. Include city (' + city + ') and business name (' + biz + ') naturally.\n\nWrite only the new response, nothing else.';
+    } else {
+      // Fresh generation
+      const g = reviewData.rating <= 2 ? 'Negative review: apologize sincerely and explain improvements.' : reviewData.rating === 3 ? 'Mixed review: thank them and acknowledge issues.' : 'Positive review: thank them warmly.';
+      prompt = 'Respond to this Google review for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + ',". ' + g + ' Include city and business name. Under 150 words. Write in a natural, human way - avoid em dashes, overly formal language, and AI-sounding phrases. Use simple conversational sentences.\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response.';
+    }
+
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 200, temperature: 0.7 } }) });
     if (!res.ok) { const err = await res.json(); throw new Error(err?.error?.message || 'Gemini API error'); }
     const data = await res.json();
@@ -115,7 +111,7 @@
     btn.disabled = true;
     btn.textContent = 'Generating...';
     try {
-      const responseText = await callGemini(reviewData);
+      const responseText = await callGemini(reviewData, null, null);
       saveToHistory(reviewData.reviewerName, reviewData.rating, reviewData.reviewText, responseText);
       showPanel(card, responseText, reviewData);
     } catch (err) { showNotice('Error: ' + err.message, 'error'); }
@@ -140,7 +136,37 @@
     if (businessProfile?.city && !responseText.toLowerCase().includes(businessProfile.city.toLowerCase())) missingKeywords.push(businessProfile.city);
     if (businessProfile?.businessName && !responseText.toLowerCase().includes(businessProfile.businessName.toLowerCase())) missingKeywords.push(businessProfile.businessName);
 
-    panel.innerHTML = '<div class="rs-panel-header"><span class="rs-panel-logo">RankSniper</span><div class="rs-panel-badges"><span class="rs-badge rs-badge-seo">SEO Optimized</span><span class="rs-score-badge" style="background:' + scoreColor + '20;border:1px solid ' + scoreColor + ';color:' + scoreColor + ';font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">Score: ' + score + '/100</span></div><button class="rs-panel-close">X</button></div><div class="rs-panel-body"><textarea class="rs-response-text" rows="6">' + responseText + '</textarea>' + (missingKeywords.length > 0 ? '<div style="font-size:11px;color:#f59e0b;margin-top:6px;">Tip: Consider adding: ' + missingKeywords.join(', ') + '</div>' : '') + '<div class="rs-panel-actions"><button class="rs-copy-btn">Copy</button><button class="rs-paste-btn">Paste into Reply Box</button><button class="rs-regen-btn">Regenerate</button></div><div class="rs-keywords-row"><span class="rs-keywords-label">Keywords used:</span><span class="rs-keywords-list" id="rs-kw-' + uid + '"></span></div></div>';
+    panel.innerHTML = `
+      <div class="rs-panel-header">
+        <span class="rs-panel-logo">RankSniper</span>
+        <div class="rs-panel-badges">
+          <span class="rs-badge rs-badge-seo">SEO Optimized</span>
+          <span style="background:${scoreColor}20;border:1px solid ${scoreColor};color:${scoreColor};font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">Score: ${score}/100</span>
+        </div>
+        <button class="rs-panel-close">X</button>
+      </div>
+      <div class="rs-panel-body">
+        <textarea class="rs-response-text" rows="5">${responseText}</textarea>
+        ${missingKeywords.length > 0 ? '<div style="font-size:11px;color:#f59e0b;margin-top:6px;">Tip: Consider adding: ' + missingKeywords.join(', ') + '</div>' : ''}
+        <div class="rs-panel-actions">
+          <button class="rs-copy-btn">Copy</button>
+          <button class="rs-paste-btn">Paste into Reply Box</button>
+          <button class="rs-regen-btn">Regenerate</button>
+        </div>
+        <div class="rs-keywords-row">
+          <span class="rs-keywords-label">Keywords used:</span>
+          <span class="rs-keywords-list" id="rs-kw-${uid}"></span>
+        </div>
+        <div class="rs-chat-box">
+          <div class="rs-chat-label">Refine this response:</div>
+          <div class="rs-chat-input-row">
+            <input type="text" class="rs-chat-input" placeholder='e.g. "Make it shorter" or "Sound more apologetic"'>
+            <button class="rs-chat-send">Go</button>
+          </div>
+          <div class="rs-chat-history" id="rs-chat-${uid}"></div>
+        </div>
+      </div>
+    `;
     card.appendChild(panel);
 
     setTimeout(() => {
@@ -149,23 +175,80 @@
     }, 100);
 
     panel.querySelector('.rs-panel-close').addEventListener('click', () => panel.remove());
+
     panel.querySelector('.rs-copy-btn').addEventListener('click', () => {
       navigator.clipboard.writeText(panel.querySelector('.rs-response-text').value);
       const b = panel.querySelector('.rs-copy-btn');
       b.textContent = 'Copied!';
       setTimeout(() => b.textContent = 'Copy', 2000);
     });
+
     panel.querySelector('.rs-paste-btn').addEventListener('click', () => {
       const rb = card.querySelector('.F87tLd') || card.querySelector('div.lGXsGc button') || card.querySelector('button[aria-label*="Reply"]');
       if (rb) rb.click();
       const text = panel.querySelector('.rs-response-text').value;
       setTimeout(() => pasteIntoTextarea(text), 1000);
     });
+
     panel.querySelector('.rs-regen-btn').addEventListener('click', async () => {
       panel.remove();
       const fb = card.querySelector('.ranksniper-btn');
       if (fb) await handleDraftClick(fb, reviewData, card);
     });
+
+    // Chat / refine functionality
+    const chatInput = panel.querySelector('.rs-chat-input');
+    const chatSend = panel.querySelector('.rs-chat-send');
+    const chatHistory = panel.querySelector('#rs-chat-' + uid);
+
+    async function sendInstruction() {
+      const instruction = chatInput.value.trim();
+      if (!instruction) return;
+      const currentResponse = panel.querySelector('.rs-response-text').value;
+
+      // Show user message
+      const userMsg = document.createElement('div');
+      userMsg.style.cssText = 'font-size:11px;color:#60a5fa;margin-bottom:4px;';
+      userMsg.textContent = 'You: ' + instruction;
+      chatHistory.appendChild(userMsg);
+
+      chatInput.value = '';
+      chatSend.disabled = true;
+      chatSend.textContent = '...';
+
+      try {
+        await loadProfile();
+        const newResponse = await callGemini(reviewData, instruction, currentResponse);
+
+        // Update textarea
+        panel.querySelector('.rs-response-text').value = newResponse;
+
+        // Update score
+        const newScore = scoreResponse(newResponse, businessProfile);
+        const newColor = newScore >= 80 ? '#22c55e' : newScore >= 60 ? '#f59e0b' : '#ef4444';
+        const scoreBadge = panel.querySelector('[style*="Score:"]') || panel.querySelectorAll('span')[1];
+        if (scoreBadge) { scoreBadge.textContent = 'Score: ' + newScore + '/100'; scoreBadge.style.color = newColor; }
+
+        // Show AI reply in chat
+        const aiMsg = document.createElement('div');
+        aiMsg.style.cssText = 'font-size:11px;color:#22c55e;margin-bottom:4px;';
+        aiMsg.textContent = 'Done! Response updated above.';
+        chatHistory.appendChild(aiMsg);
+
+        saveToHistory(reviewData.reviewerName, reviewData.rating, reviewData.reviewText, newResponse);
+      } catch (err) {
+        const errMsg = document.createElement('div');
+        errMsg.style.cssText = 'font-size:11px;color:#ef4444;';
+        errMsg.textContent = 'Error: ' + err.message;
+        chatHistory.appendChild(errMsg);
+      } finally {
+        chatSend.disabled = false;
+        chatSend.textContent = 'Go';
+      }
+    }
+
+    chatSend.addEventListener('click', sendInstruction);
+    chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendInstruction(); });
   }
 
   function showNotice(msg, type) {
@@ -222,7 +305,7 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.31 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
+    console.log('[RankSniper] v1.32 loaded. API key:', geminiApiKey ? 'OK' : 'MISSING');
     setTimeout(injectButtons, 2000);
     setTimeout(injectButtons, 4000);
   }
