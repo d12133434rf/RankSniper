@@ -154,12 +154,20 @@
     });
   }
 
-  let t = null;
+let t = null;
   new MutationObserver((mutations) => {
     const hasNewNodes = mutations.some(m => m.addedNodes.length > 0);
     if (!hasNewNodes) return;
     clearTimeout(t);
-    t = setTimeout(injectButtons, 1000);
+    t = setTimeout(() => {
+      injectButtons();
+      // Move button next to Cancel when reply box opens
+      const cancelBtn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Cancel');
+      const btn = document.querySelector('.ranksniper-btn');
+      if (cancelBtn && btn && btn.parentElement !== cancelBtn.parentElement) {
+        cancelBtn.insertAdjacentElement('afterend', btn);
+      }
+    }, 500);
   }).observe(document.body, { subtree: true, childList: true });
 
   async function init() {
