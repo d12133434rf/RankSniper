@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="history-date">${h.date}</span>
           </div>
           <div class="history-rating">${stars(h.rating)} | "${h.reviewText}..."</div>
-          <div class="history-response" onclick="navigator.clipboard.writeText(this.dataset.text);this.style.color='#22c55e';setTimeout(()=>this.style.color='',1500)" data-text="${h.response.replace(/"/g, '&quot;')}" title="Click to copy">${h.response.substring(0, 120)}...</div>
+          <div class="history-response" onclick="navigator.clipboard.writeText(this.dataset.text);this.style.color='#22c55e';setTimeout(()=>this.style.color='',1500)" data-text="${h.response.replace(/"/g, '&quot;')}" title="Click to copy">${h.response}</div>
         </div>
       `).join('');
     });
