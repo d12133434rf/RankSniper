@@ -1,11 +1,43 @@
-﻿/* RankSniper Panel CSS */
+/* RankSniper Panel CSS */
 
-.ranksniper-btn { display: inline-flex !important; align-items: center !important; background: #1a73e8 !important; color: #fff !important; border: none !important; border-radius: 4px !important; padding: 6px 14px !important; font-size: 13px !important; font-weight: 600 !important; cursor: pointer !important; margin-left: 8px !important; font-family: "Google Sans", system-ui, sans-serif !important; vertical-align: middle !important; }
-.ranksniper-btn:hover { background: #1557b0 !important; }
-.ranksniper-btn:disabled { opacity: 0.7 !important; cursor: not-allowed !important; }
+/* Button — sits inline next to Reply */
+.ranksniper-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background: #1a73e8 !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 4px !important;
+  padding: 6px 14px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  margin-left: 8px !important;
+  font-family: 'Google Sans', system-ui, sans-serif !important;
+  transition: background 0.2s !important;
+  vertical-align: middle !important;
+  position: static !important;
+  float: none !important;
+}
 
-div.lGXsGc { display: flex !important; align-items: center !important; flex-wrap: wrap !important; gap: 8px !important; }
+.ranksniper-btn:hover {
+  background: #1557b0 !important;
+}
 
+.ranksniper-btn:disabled {
+  opacity: 0.7 !important;
+  cursor: not-allowed !important;
+}
+
+/* Make Reply button row flex so our button sits beside it */
+div.lGXsGc {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+}
+
+/* Panel — full width below review */
 .rs-panel {
   width: 100% !important;
   background: #1e293b !important;
@@ -17,6 +49,7 @@ div.lGXsGc { display: flex !important; align-items: center !important; flex-wrap
   display: block !important;
   clear: both !important;
 }
+
 .rs-panel-header {
   display: flex !important;
   align-items: center !important;
@@ -25,13 +58,50 @@ div.lGXsGc { display: flex !important; align-items: center !important; flex-wrap
   background: #0f172a !important;
   border-bottom: 1px solid #334155 !important;
 }
-.rs-panel-logo { font-size: 14px !important; font-weight: 700 !important; color: #fff !important; }
-.rs-panel-badges { display: flex !important; gap: 6px !important; }
-.rs-badge { font-size: 10px !important; font-weight: 700 !important; padding: 2px 8px !important; border-radius: 20px !important; text-transform: uppercase !important; }
-.rs-badge-seo { background: transparent !important; border: 1px solid #22c55e !important; color: #22c55e !important; }
-.rs-panel-close { background: none !important; border: none !important; color: #94a3b8 !important; cursor: pointer !important; font-size: 16px !important; padding: 0 4px !important; }
+
+.rs-panel-logo {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #fff !important;
+  font-family: 'Google Sans', system-ui, sans-serif !important;
+}
+
+.rs-panel-badges {
+  display: flex !important;
+  gap: 6px !important;
+}
+
+.rs-badge {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  padding: 2px 8px !important;
+  border-radius: 20px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+.rs-badge-seo {
+  background: transparent !important;
+  border: 1px solid #22c55e !important;
+  color: #22c55e !important;
+}
+
+.rs-panel-close {
+  background: none !important;
+  border: none !important;
+  color: #94a3b8 !important;
+  cursor: pointer !important;
+  font-size: 16px !important;
+  padding: 0 4px !important;
+  line-height: 1 !important;
+}
+
 .rs-panel-close:hover { color: #fff !important; }
-.rs-panel-body { padding: 14px !important; }
+
+.rs-panel-body {
+  padding: 14px !important;
+}
+
 .rs-response-text {
   width: 100% !important;
   background: #0f172a !important;
@@ -41,25 +111,118 @@ div.lGXsGc { display: flex !important; align-items: center !important; flex-wrap
   padding: 10px !important;
   font-size: 13px !important;
   line-height: 1.6 !important;
-  font-family: "Google Sans", system-ui, sans-serif !important;
+  font-family: 'Google Sans', system-ui, sans-serif !important;
   resize: vertical !important;
   box-sizing: border-box !important;
 }
-.rs-panel-actions { display: flex !important; gap: 8px !important; margin-top: 10px !important; flex-wrap: wrap !important; }
-.rs-panel-actions button { padding: 7px 14px !important; border-radius: 6px !important; font-size: 12px !important; font-weight: 600 !important; cursor: pointer !important; border: none !important; }
+
+.rs-panel-actions {
+  display: flex !important;
+  gap: 8px !important;
+  margin-top: 10px !important;
+  flex-wrap: wrap !important;
+}
+
+.rs-panel-actions button {
+  padding: 7px 14px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  font-family: 'Google Sans', system-ui, sans-serif !important;
+  border: none !important;
+  transition: opacity 0.2s !important;
+}
+
 .rs-copy-btn { background: #334155 !important; color: #e2e8f0 !important; }
 .rs-paste-btn { background: #1a73e8 !important; color: #fff !important; }
 .rs-regen-btn { background: #334155 !important; color: #e2e8f0 !important; }
+
 .rs-panel-actions button:hover { opacity: 0.85 !important; }
-.rs-keywords-row { margin-top: 10px !important; font-size: 11px !important; color: #64748b !important; display: flex !important; align-items: center !important; gap: 6px !important; flex-wrap: wrap !important; }
-.rs-keyword-tag { background: #0f172a !important; border: 1px solid #334155 !important; border-radius: 20px !important; padding: 2px 8px !important; color: #60a5fa !important; font-size: 11px !important; }
-.rs-notice { position: fixed !important; bottom: 20px !important; right: 20px !important; padding: 10px 16px !important; border-radius: 8px !important; font-size: 13px !important; font-weight: 600 !important; z-index: 999999 !important; }
+
+.rs-keywords-row {
+  margin-top: 10px !important;
+  font-size: 11px !important;
+  color: #64748b !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
+}
+
+.rs-keyword-tag {
+  background: #0f172a !important;
+  border: 1px solid #334155 !important;
+  border-radius: 20px !important;
+  padding: 2px 8px !important;
+  color: #60a5fa !important;
+  font-size: 11px !important;
+}
+
+/* Toast */
+.rs-notice {
+  position: fixed !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  padding: 10px 16px !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  z-index: 999999 !important;
+  font-family: 'Google Sans', system-ui, sans-serif !important;
+}
+
 .rs-notice-success { background: #22c55e !important; color: #fff !important; }
 .rs-notice-error { background: #ef4444 !important; color: #fff !important; }
 .rs-notice-info { background: #3b82f6 !important; color: #fff !important; }
 
-
-.ranksniper-btn { display: inline-flex !important; align-items: center !important; background: #1a73e8 !important; color: #fff !important; border: none !important; border-radius: 4px !important; padding: 6px 14px !important; font-size: 13px !important; font-weight: 600 !important; cursor: pointer !important; margin-left: 8px !important; font-family: "Google Sans", system-ui, sans-serif !important; vertical-align: middle !important; }
-
-
-
+/* Chat / Refine box */
+.rs-chat-box {
+  margin-top: 12px !important;
+  border-top: 1px solid #1e293b !important;
+  padding-top: 10px !important;
+}
+.rs-chat-label {
+  font-size: 11px !important;
+  color: #475569 !important;
+  font-weight: 600 !important;
+  margin-bottom: 6px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.4px !important;
+}
+.rs-chat-input-row {
+  display: flex !important;
+  gap: 6px !important;
+}
+.rs-chat-input {
+  flex: 1 !important;
+  background: #0f172a !important;
+  border: 1px solid #334155 !important;
+  border-radius: 6px !important;
+  color: #e2e8f0 !important;
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+  font-family: 'Google Sans', system-ui, sans-serif !important;
+  outline: none !important;
+}
+.rs-chat-input:focus {
+  border-color: #3b82f6 !important;
+}
+.rs-chat-send {
+  background: #3b82f6 !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 6px 14px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  font-family: 'Google Sans', system-ui, sans-serif !important;
+}
+.rs-chat-send:hover { background: #2563eb !important; }
+.rs-chat-send:disabled { opacity: 0.6 !important; cursor: not-allowed !important; }
+.rs-chat-history {
+  margin-top: 8px !important;
+  max-height: 80px !important;
+  overflow-y: auto !important;
+}
