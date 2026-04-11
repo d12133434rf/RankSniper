@@ -46,14 +46,15 @@
 
     .form-group { margin-bottom: 10px; }
     .form-group label { display: block; font-size: 10px; color: #475569; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
-    .form-group input, .form-group select { width: 100%; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; padding: 7px 10px; font-size: 12px; outline: none; font-family: inherit; transition: border-color 0.2s; }
-    .form-group input:focus, .form-group select:focus { border-color: #3b82f6; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; padding: 7px 10px; font-size: 12px; outline: none; font-family: inherit; transition: border-color 0.2s; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #3b82f6; }
     .form-group select option { background: #1e293b; }
+    .form-group textarea { resize: vertical; }
+    .form-hint { font-size: 10px; color: #334155; margin-top: 3px; }
 
     .save-btn { width: 100%; background: linear-gradient(135deg, #2563eb, #3b82f6); color: #fff; border: none; padding: 9px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.2s; margin-top: 4px; }
     .save-btn:hover { opacity: 0.9; }
 
-    /* History tab */
     .history-list { max-height: 400px; overflow-y: auto; }
     .history-item { padding: 10px 16px; border-bottom: 1px solid #0f172a; }
     .history-item:last-child { border-bottom: none; }
@@ -61,11 +62,10 @@
     .history-name { font-size: 12px; font-weight: 600; color: #e2e8f0; }
     .history-date { font-size: 10px; color: #475569; }
     .history-rating { font-size: 11px; color: #f59e0b; margin-bottom: 4px; }
-    .history-text { font-size: 11px; color: #64748b; margin-bottom: 6px; line-height: 1.4; }
-    .history-response { font-size: 11px; color: #94a3b8; background: #0f172a; border-radius: 6px; padding: 8px; line-height: 1.4; cursor: pointer; }
-    .history-response:hover { border: 1px solid #334155; }
+    .history-response { font-size: 11px; color: #94a3b8; background: #0f172a; border-radius: 6px; padding: 8px; line-height: 1.4; cursor: pointer; border: 1px solid transparent; }
+    .history-response:hover { border-color: #334155; }
     .history-empty { padding: 24px 16px; text-align: center; color: #475569; font-size: 12px; }
-    .history-clear { width: 100%; background: none; border: 1px solid #ef444430; color: #ef4444; padding: 8px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; margin: 8px 16px; width: calc(100% - 32px); }
+    .history-clear { background: none; border: 1px solid #ef444430; color: #ef4444; padding: 8px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; margin: 8px 16px; width: calc(100% - 32px); }
 
     .step { display: flex; gap: 10px; margin-bottom: 10px; }
     .step-num { width: 20px; height: 20px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; }
@@ -167,6 +167,11 @@
           <option value="formal">Formal</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>Custom Instructions</label>
+        <textarea id="customInstructions" rows="3" placeholder="e.g. Always mention our loyalty program. Never offer refunds. Always invite them back for a free dessert."></textarea>
+        <div class="form-hint">These instructions are added to every AI response.</div>
+      </div>
       <button class="save-btn" id="save-profile">Save Profile</button>
     </div>
 
@@ -193,13 +198,13 @@
       <div class="section-title">How It Works</div>
       <div class="step"><div class="step-num">1</div><div class="step-text">Go to <strong>business.google.com/reviews</strong> and open your reviews</div></div>
       <div class="step"><div class="step-num">2</div><div class="step-text">Click <strong>Draft AI Response</strong> next to any review</div></div>
-      <div class="step"><div class="step-num">3</div><div class="step-text">Review the SEO-optimized response and click <strong>Copy</strong></div></div>
-      <div class="step"><div class="step-num">4</div><div class="step-text">Click <strong>Reply</strong> on Google, paste with <strong>Ctrl+V</strong> and submit</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">Review the response, refine it using the chat box if needed</div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text">Click <strong>Copy</strong>, then click Reply on Google and paste with <strong>Ctrl+V</strong></div></div>
     </div>
   </div>
 
   <div class="footer">
-    <span>RankSniper v1.31</span>
+    <span>RankSniper v1.33</span>
     <a href="https://ranksniper.io" target="_blank">ranksniper.io</a>
   </div>
 
