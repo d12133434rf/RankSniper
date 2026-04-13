@@ -289,9 +289,13 @@
       btn.textContent = 'Draft AI Response';
       btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, card); });
       if (isSearch) {
-        const rb = card.querySelector('.F87tLd');
-        if (rb) rb.parentElement.appendChild(btn);
-        else card.appendChild(btn);
+        const actionRow = card.querySelector('.dwrWYe');
+        if (actionRow) actionRow.appendChild(btn);
+        else {
+          const rb = card.querySelector('.F87tLd');
+          if (rb) rb.parentElement.appendChild(btn);
+          else card.appendChild(btn);
+        }
       } else {
         const row = card.querySelector('div.lGXsGc');
         if (row) row.appendChild(btn);
