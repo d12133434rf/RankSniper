@@ -1,24 +1,22 @@
-﻿{
+{
   "manifest_version": 3,
   "name": "RankSniper - Google Review AI Responder",
-  "version": "1.0.0",
+  "version": "1.4.0",
   "description": "Respond to Google Business reviews with SEO-optimized AI responses in one click. Rank higher on Google Maps.",
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
     "https://business.google.com/*",
     "https://www.google.com/*",
     "https://google.com/*",
-    "https://ranksniper.io/*",
-    "https://generativelanguage.googleapis.com/*",
-    "file:///*"
+    "https://ranksniperweb-production.up.railway.app/*",
+    "https://generativelanguage.googleapis.com/*"
   ],
   "content_scripts": [
     {
       "matches": [
         "https://business.google.com/*",
         "https://www.google.com/*",
-        "https://google.com/*",
-        "file:///*"
+        "https://google.com/*"
       ],
       "js": ["content.js"],
       "css": ["panel.css"],
@@ -39,5 +37,3 @@
     "128": "icons/icon128.png"
   }
 }
-
-
