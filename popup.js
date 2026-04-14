@@ -1,6 +1,121 @@
+const API = 'https://ranksniperweb-production.up.railway.app';
+
 document.addEventListener('DOMContentLoaded', () => {
 
-  // Tabs
+  // Check if already logged in
+  chrome.storage.local.get(['rsToken', 'rsUser', 'rsPlan'], result => {
+    if (result.rsToken && result.rsUser) {
+      showMainApp(result.rsUser, result.rsPlan || 'free');
+    } else {
+      showLoginScreen();
+    }
+  });
+
+  // LOGIN
+  document.getElementById('login-btn').addEventListener('click', async () => {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const btn = document.getElementById('login-btn');
+    const errorEl = document.getElementById('login-error');
+
+    if (!email || !password) { showError('Please enter your email and password.'); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Logging in...';
+    errorEl.style.display = 'none';
+
+    try {
+      const res = await fetch(API + '/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showError(data.error || 'Login failed. Please try again.');
+        btn.disabled = false;
+        btn.textContent = 'Log In';
+        return;
+      }
+
+      // Save token and user info
+      chrome.storage.local.set({
+        rsToken: data.token,
+        rsUser: data.user,
+        rsPlan: data.user.plan,
+        ranksniperPlan: data.user.plan
+      }, () => {
+        showMainApp(data.user, data.user.plan);
+      });
+
+    } catch (err) {
+      showError('Network error. Check your connection.');
+      btn.disabled = false;
+      btn.textContent = 'Log In';
+    }
+  });
+
+  // Allow Enter key on password field
+  document.getElementById('login-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('login-btn').click();
+  });
+
+  function showError(msg) {
+    const el = document.getElementById('login-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function showLoginScreen() {
+    document.getElementById('login-screen').style.display = 'block';
+    document.getElementById('main-app').style.display = 'none';
+    document.getElementById('plan-badge').textContent = 'Free';
+  }
+
+  function showMainApp(user, plan) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-app').style.display = 'block';
+
+    // Show user email
+    document.getElementById('user-email-display').textContent = user.email;
+
+    // Set plan badge
+    const badge = document.getElementById('plan-badge');
+    if (plan === 'pro') {
+      badge.textContent = 'PRO';
+      badge.style.color = '#22c55e';
+      badge.style.borderColor = '#22c55e50';
+      document.getElementById('upgrade-section').style.display = 'none';
+    } else {
+      badge.textContent = 'Free';
+      badge.style.color = '#60a5fa';
+      document.getElementById('upgrade-section').style.display = 'block';
+    }
+
+    // Usage display
+    document.getElementById('usage-text').textContent = plan === 'pro' ? 'Unlimited responses' : 'Free plan — upgrade for unlimited';
+    document.getElementById('usage-fill').style.width = plan === 'pro' ? '100%' : '0%';
+
+    // Load profiles
+    loadProfiles(() => {});
+
+    // Notify content script of auth state
+    chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'RS_AUTH_UPDATE', plan, token: null }).catch(() => {});
+      }
+    });
+  }
+
+  // LOGOUT
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    chrome.storage.local.remove(['rsToken', 'rsUser', 'rsPlan', 'ranksniperPlan'], () => {
+      showLoginScreen();
+    });
+  });
+
+  // TABS
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -15,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeProfileId = null;
 
   function loadProfiles(cb) {
-    chrome.storage.local.get(['rsProfiles', 'rsActiveProfile', 'ranksniperUsage', 'ranksniperPlan'], result => {
+    chrome.storage.local.get(['rsProfiles', 'rsActiveProfile', 'ranksniperUsage', 'rsPlan'], result => {
       profiles = result.rsProfiles || {};
       activeProfileId = result.rsActiveProfile || null;
       if (Object.keys(profiles).length === 0) {
@@ -119,19 +234,6 @@ document.addEventListener('DOMContentLoaded', () => {
       renderProfileSelector();
       setTimeout(() => { saveBtn.textContent = 'Save Profile'; saveBtn.disabled = false; }, 2000);
     });
-  });
-
-  loadProfiles(result => {
-    const usage = result.ranksniperUsage || 0;
-    const plan = result.ranksniperPlan || 'free';
-    const limit = plan === 'pro' ? 'Unlimited' : '5';
-    document.getElementById('usage-text').textContent = usage + ' / ' + limit + ' this month';
-    document.getElementById('usage-fill').style.width = plan === 'pro' ? '100%' : Math.min((usage / 5) * 100, 100) + '%';
-    if (plan === 'pro') {
-      document.getElementById('plan-badge').textContent = 'PRO';
-      document.getElementById('plan-badge').style.color = '#22c55e';
-      document.getElementById('upgrade-section').style.display = 'none';
-    }
   });
 
   function loadHistory() {
