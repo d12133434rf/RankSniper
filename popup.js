@@ -57,6 +57,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // Save token and user info
+      // Block users with no active subscription
+      if (data.user.plan !== 'pro') {
+        showError('No active subscription. Visit getranksniper.com to subscribe.');
+        btn.disabled = false;
+        btn.textContent = 'Log In';
+        return;
+      }
+
       chrome.storage.local.set({
         rsToken: data.token,
         rsUser: data.user,
