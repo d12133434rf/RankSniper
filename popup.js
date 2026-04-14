@@ -2,10 +2,27 @@ const API = 'https://ranksniperweb-production.up.railway.app';
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  // Check if already logged in
-  chrome.storage.local.get(['rsToken', 'rsUser', 'rsPlan'], result => {
+  // Check if already logged in — verify plan with backend every time
+  chrome.storage.local.get(['rsToken', 'rsUser', 'rsPlan'], async result => {
     if (result.rsToken && result.rsUser) {
-      showMainApp(result.rsUser, result.rsPlan || 'free');
+      try {
+        const res = await fetch(API + '/api/auth/me', {
+          headers: { 'Authorization': 'Bearer ' + result.rsToken }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const freshPlan = data.user?.plan || 'free';
+          chrome.storage.local.set({ rsPlan: freshPlan, ranksniperPlan: freshPlan });
+          showMainApp(result.rsUser, freshPlan);
+        } else {
+          // Token expired or invalid — force logout
+          chrome.storage.local.remove(['rsToken', 'rsUser', 'rsPlan', 'ranksniperPlan']);
+          showLoginScreen();
+        }
+      } catch (err) {
+        // Network error — fall back to cached plan
+        showMainApp(result.rsUser, result.rsPlan || 'free');
+      }
     } else {
       showLoginScreen();
     }
