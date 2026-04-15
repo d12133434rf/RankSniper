@@ -232,24 +232,27 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function loadProfiles(cb) {
-    chrome.storage.sync.get(['rsProfiles', 'rsActiveProfile'], syncResult => { chrome.storage.local.get(['ranksniperUsage', 'rsPlan'], localResult => { const result = {...localResult, ...syncResult};
-      profiles = result.rsProfiles || {};
-      activeProfileId = result.rsActiveProfile || null;
-      if (Object.keys(profiles).length === 0) {
-        chrome.storage.local.get(['ranksniperProfile'], old => {
-          if (old.ranksniperProfile) {
-            const id = 'profile_' + Date.now();
-            profiles[id] = { ...old.ranksniperProfile, profileName: old.ranksniperProfile.businessName || 'Main Profile' };
-            activeProfileId = id;
-            chrome.storage.sync.set({ rsProfiles: profiles, rsActiveProfile: id });
-          }
+    chrome.storage.sync.get(['rsProfiles', 'rsActiveProfile'], syncResult => {
+      chrome.storage.local.get(['ranksniperUsage', 'rsPlan'], localResult => {
+        const result = { ...localResult, ...syncResult };
+        profiles = result.rsProfiles || {};
+        activeProfileId = result.rsActiveProfile || null;
+        if (Object.keys(profiles).length === 0) {
+          chrome.storage.local.get(['ranksniperProfile'], old => {
+            if (old.ranksniperProfile) {
+              const id = 'profile_' + Date.now();
+              profiles[id] = { ...old.ranksniperProfile, profileName: old.ranksniperProfile.businessName || 'Main Profile' };
+              activeProfileId = id;
+              chrome.storage.sync.set({ rsProfiles: profiles, rsActiveProfile: id });
+            }
+            renderProfileSelector();
+            if (cb) cb(result);
+          });
+        } else {
           renderProfileSelector();
           if (cb) cb(result);
-        });
-      } else {
-        renderProfileSelector();
-        if (cb) cb(result);
-      }
+        }
+      });
     });
   }
 
