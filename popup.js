@@ -1,8 +1,24 @@
 const API = 'https://ranksniperweb-production.up.railway.app';
 
+// SEO-optimized entity-based keywords by business type
+const SEO_KEYWORDS = {
+  'restaurant': ['best dining in [City]', 'top-rated restaurant', 'lunch specials', 'outdoor seating', 'online reservations', 'happy hour deals', 'family dining', 'menu favorites', 'dine-in and takeout', 'local food favorite'],
+  'barber shop': ["men's haircut [City]", 'beard trim', 'hot towel shave', 'best barber in [City]', 'hair fades', 'hair styling', 'walk-in haircut', 'low fade specialist', 'kids haircut', 'barber near me'],
+  'hair salon': ['hair coloring [City]', 'balayage specialist', 'keratin treatment', 'best hair salon', 'haircut and blowout', 'highlights and lowlights', 'hair extensions', 'salon near me', 'color correction', 'bridal hair'],
+  'nail salon': ['gel manicure [City]', 'acrylic nails', 'nail art specialist', 'pedicure near me', 'dip powder nails', 'best nail salon', 'nail extensions', 'luxury pedicure', 'nail salon near me', 'nail technician'],
+  'auto shop': ['brake repair [City]', 'oil change near me', 'transmission service', 'check engine light', 'tire rotation', 'scheduled maintenance', 'auto repair shop', 'engine diagnostics', 'AC repair', 'car inspection'],
+  'dental office': ['teeth whitening [City]', 'emergency dentist', 'dental implants', 'root canal specialist', 'teeth cleaning', 'cosmetic dentistry', 'dental crowns', 'pediatric dentist', 'Invisalign provider', 'dentist accepting new patients'],
+  'gym': ['gym membership [City]', 'personal trainer', 'group fitness classes', 'weight loss program', 'CrossFit near me', 'gym near me', '24 hour gym', 'fitness center', 'strength training', 'yoga classes'],
+  'spa': ['massage therapy [City]', 'deep tissue massage', 'facial treatment', 'couples massage', 'hot stone massage', 'spa near me', 'relaxation massage', 'body wrap treatment', 'prenatal massage', 'day spa'],
+  'retail store': ['shop local [City]', 'unique gifts', 'online and in-store', 'sale and deals', 'locally owned store', 'retail near me', 'gift shop', 'boutique store', 'same day pickup', 'quality products'],
+  'real estate': ['homes for sale [City]', 'real estate agent', 'buyer and seller representation', 'property listings', 'first-time homebuyer', 'real estate near me', 'home valuation', 'luxury homes', 'investment properties', 'local market expert'],
+  'law firm': ['personal injury lawyer [City]', 'free consultation', 'no win no fee', 'family law attorney', 'criminal defense lawyer', 'estate planning', 'immigration attorney', 'business law', 'law firm near me', 'experienced attorneys'],
+  'medical office': ['primary care [City]', 'same day appointments', 'accepting new patients', 'telehealth available', 'urgent care near me', 'family medicine', 'annual physical exam', 'lab work on-site', 'insurance accepted', 'board certified physicians'],
+  'other': ['best [City] service', 'top-rated local business', 'near me', 'highly recommended', 'locally owned', 'same day service', 'free consultation', 'affordable pricing', 'experienced team', 'trusted local provider']
+};
+
 document.addEventListener('DOMContentLoaded', () => {
 
-  // Check if already logged in — verify plan with backend every time
   chrome.storage.local.get(['rsToken', 'rsUser', 'rsPlan'], async result => {
     if (result.rsToken && result.rsUser) {
       try {
@@ -15,12 +31,10 @@ document.addEventListener('DOMContentLoaded', () => {
           chrome.storage.local.set({ rsPlan: freshPlan, ranksniperPlan: freshPlan });
           showMainApp(result.rsUser, freshPlan);
         } else {
-          // Token expired or invalid — force logout
           chrome.storage.local.remove(['rsToken', 'rsUser', 'rsPlan', 'ranksniperPlan']);
           showLoginScreen();
         }
       } catch (err) {
-        // Network error — fall back to cached plan
         showMainApp(result.rsUser, result.rsPlan || 'free');
       }
     } else {
@@ -28,7 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // LOGIN
   document.getElementById('login-btn').addEventListener('click', async () => {
     const email = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
@@ -56,8 +69,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Save token and user info
-      // Block users with no active subscription
       if (data.user.plan !== 'pro') {
         showError('No active subscription. Visit getranksniper.com to subscribe.');
         btn.disabled = false;
@@ -81,7 +92,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Allow Enter key on password field
   document.getElementById('login-password').addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('login-btn').click();
   });
@@ -101,11 +111,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function showMainApp(user, plan) {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main-app').style.display = 'block';
-
-    // Show user email
     document.getElementById('user-email-display').textContent = user.email;
 
-    // Set plan badge
     const badge = document.getElementById('plan-badge');
     if (plan === 'pro') {
       badge.textContent = 'PRO';
@@ -118,14 +125,11 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('upgrade-section').style.display = 'block';
     }
 
-    // Usage display
     document.getElementById('usage-text').textContent = plan === 'pro' ? 'Unlimited responses' : 'Free plan — upgrade for unlimited';
     document.getElementById('usage-fill').style.width = plan === 'pro' ? '100%' : '0%';
 
-    // Load profiles
     loadProfiles(() => {});
 
-    // Notify content script of auth state
     chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
       if (tabs[0]) {
         chrome.tabs.sendMessage(tabs[0].id, { type: 'RS_AUTH_UPDATE', plan, token: null }).catch(() => {});
@@ -133,14 +137,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // LOGOUT
   document.getElementById('logout-btn').addEventListener('click', () => {
     chrome.storage.local.remove(['rsToken', 'rsUser', 'rsPlan', 'ranksniperPlan'], () => {
       showLoginScreen();
     });
   });
 
-  // TABS
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -154,8 +156,83 @@ document.addEventListener('DOMContentLoaded', () => {
   let profiles = {};
   let activeProfileId = null;
 
+  // Auto-generate SEO keywords when business type changes
+  document.getElementById('businessType').addEventListener('change', function() {
+    const type = this.value;
+    if (!type) return;
+    const keywords = SEO_KEYWORDS[type] || SEO_KEYWORDS['other'];
+    // Only auto-fill if keywords field is empty or was previously auto-generated
+    const keywordsField = document.getElementById('keywords');
+    if (!keywordsField.dataset.manuallyEdited) {
+      keywordsField.value = keywords.slice(0, 5).join(', ');
+    }
+  });
+
+  // Track manual keyword edits
+  document.getElementById('keywords').addEventListener('input', function() {
+    this.dataset.manuallyEdited = 'true';
+  });
+
+  // Reset manual edit flag when profile loads
+  function resetKeywordsFlag() {
+    document.getElementById('keywords').dataset.manuallyEdited = '';
+  }
+
+  function getKeywordSuggestions(type) {
+    return (SEO_KEYWORDS[type] || SEO_KEYWORDS['other']);
+  }
+
+  function renderKeywordSuggestions(type, currentKeywords) {
+    const container = document.getElementById('keyword-suggestions');
+    if (!container) return;
+    const allKeywords = getKeywordSuggestions(type);
+    const current = currentKeywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+    const suggestions = allKeywords.filter(k => !current.includes(k.toLowerCase()));
+    
+    if (suggestions.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    const label = document.getElementById('chips-label');
+    if (label) label.style.display = suggestions.length > 0 ? 'block' : 'none';
+    container.innerHTML = suggestions.slice(0, 6).map(k =>
+      `<span class="keyword-chip" data-keyword="${k}">${k}</span>`
+    ).join('');
+
+    container.querySelectorAll('.keyword-chip').forEach(chip => {
+      chip.addEventListener('click', function() {
+        const kw = this.dataset.keyword;
+        const field = document.getElementById('keywords');
+        const current = field.value.trim();
+        const existing = current.split(',').map(k => k.trim().toLowerCase());
+        if (existing.includes(kw.toLowerCase())) return;
+        field.value = current ? current + ', ' + kw : kw;
+        field.dataset.manuallyEdited = 'true';
+        renderKeywordSuggestions(document.getElementById('businessType').value, field.value);
+      });
+    });
+  }
+
+  document.getElementById('keywords').addEventListener('input', function() {
+    this.dataset.manuallyEdited = 'true';
+    const type = document.getElementById('businessType').value;
+    renderKeywordSuggestions(type, this.value);
+  });
+
+  document.getElementById('businessType').addEventListener('change', function() {
+    const type = this.value;
+    if (!type) return;
+    const keywordsField = document.getElementById('keywords');
+    if (!keywordsField.dataset.manuallyEdited) {
+      const keywords = SEO_KEYWORDS[type] || SEO_KEYWORDS['other'];
+      keywordsField.value = keywords.slice(0, 5).join(', ');
+    }
+    renderKeywordSuggestions(type, keywordsField.value);
+  });
+
   function loadProfiles(cb) {
-    chrome.storage.local.get(['rsProfiles', 'rsActiveProfile', 'ranksniperUsage', 'rsPlan'], result => {
+    chrome.storage.sync.get(['rsProfiles', 'rsActiveProfile'], syncResult => { chrome.storage.local.get(['ranksniperUsage', 'rsPlan'], localResult => { const result = {...localResult, ...syncResult};
       profiles = result.rsProfiles || {};
       activeProfileId = result.rsActiveProfile || null;
       if (Object.keys(profiles).length === 0) {
@@ -164,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const id = 'profile_' + Date.now();
             profiles[id] = { ...old.ranksniperProfile, profileName: old.ranksniperProfile.businessName || 'Main Profile' };
             activeProfileId = id;
-            chrome.storage.local.set({ rsProfiles: profiles, rsActiveProfile: id });
+            chrome.storage.sync.set({ rsProfiles: profiles, rsActiveProfile: id });
           }
           renderProfileSelector();
           if (cb) cb(result);
@@ -197,32 +274,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function fillForm(p) {
     if (!p) return clearForm();
+    resetKeywordsFlag();
     document.getElementById('profileName').value = p.profileName || '';
     document.getElementById('businessName').value = p.businessName || '';
     document.getElementById('city').value = p.city || '';
     document.getElementById('businessType').value = p.businessType || '';
-    document.getElementById('services').value = p.services || '';
+    document.getElementById('keywords').value = p.keywords || p.services || '';
     document.getElementById('tone').value = p.tone || 'friendly';
     document.getElementById('customInstructions').value = p.customInstructions || '';
+    // Show suggestions for loaded profile
+    renderKeywordSuggestions(p.businessType || '', p.keywords || p.services || '');
   }
 
   function clearForm() {
-    ['profileName','businessName','city','services','customInstructions'].forEach(id => document.getElementById(id).value = '');
+    resetKeywordsFlag();
+    ['profileName','businessName','city','keywords','customInstructions'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('businessType').value = '';
     document.getElementById('tone').value = 'friendly';
+    document.getElementById('keyword-suggestions').innerHTML = '';
   }
 
   document.getElementById('profile-select').addEventListener('change', e => {
     activeProfileId = e.target.value;
     fillForm(profiles[activeProfileId]);
-    chrome.storage.local.set({ rsActiveProfile: activeProfileId, ranksniperProfile: profiles[activeProfileId] });
+    chrome.storage.sync.set({ rsActiveProfile: activeProfileId }); chrome.storage.local.set({ ranksniperProfile: profiles[activeProfileId] });
   });
 
   document.getElementById('btn-new-profile').addEventListener('click', () => {
     const id = 'profile_' + Date.now();
-    profiles[id] = { profileName: 'New Profile', businessName: '', city: '', businessType: '', services: '', tone: 'friendly', customInstructions: '' };
+    profiles[id] = { profileName: 'New Profile', businessName: '', city: '', businessType: '', keywords: '', tone: 'friendly', customInstructions: '' };
     activeProfileId = id;
-    chrome.storage.local.set({ rsProfiles: profiles, rsActiveProfile: id });
+    chrome.storage.sync.set({ rsProfiles: profiles, rsActiveProfile: id });
     renderProfileSelector();
     document.getElementById('profile-select').value = id;
     fillForm(profiles[id]);
@@ -234,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!confirm('Delete this profile?')) return;
     delete profiles[activeProfileId];
     activeProfileId = Object.keys(profiles)[0] || null;
-    chrome.storage.local.set({ rsProfiles: profiles, rsActiveProfile: activeProfileId, ranksniperProfile: activeProfileId ? profiles[activeProfileId] : null });
+    chrome.storage.sync.set({ rsProfiles: profiles, rsActiveProfile: activeProfileId }); chrome.storage.local.set({ ranksniperProfile: activeProfileId ? profiles[activeProfileId] : null });
     renderProfileSelector();
   });
 
@@ -244,7 +326,8 @@ document.addEventListener('DOMContentLoaded', () => {
       businessName: document.getElementById('businessName').value.trim(),
       city: document.getElementById('city').value.trim(),
       businessType: document.getElementById('businessType').value,
-      services: document.getElementById('services').value.trim(),
+      keywords: document.getElementById('keywords').value.trim(),
+      services: document.getElementById('keywords').value.trim(), // keep backward compat
       tone: document.getElementById('tone').value,
       customInstructions: document.getElementById('customInstructions').value.trim(),
     };
@@ -253,7 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveBtn = document.getElementById('save-profile');
     saveBtn.textContent = 'Saving...';
     saveBtn.disabled = true;
-    chrome.storage.local.set({ rsProfiles: profiles, rsActiveProfile: activeProfileId, ranksniperProfile: profile }, () => {
+    chrome.storage.sync.set({ rsProfiles: profiles, rsActiveProfile: activeProfileId }, () => { chrome.storage.local.set({ ranksniperProfile: profile });
       if (chrome.runtime.lastError) { saveBtn.textContent = 'Error'; saveBtn.disabled = false; return; }
       saveBtn.textContent = 'Saved!';
       renderProfileSelector();
