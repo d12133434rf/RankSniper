@@ -14,7 +14,6 @@
     .logo-sub { font-size: 10px; color: #475569; margin-top: 1px; }
     .plan-badge { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 3px 8px; font-size: 10px; font-weight: 700; color: #60a5fa; text-transform: uppercase; }
 
-    /* LOGIN SCREEN */
     #login-screen { padding: 24px 20px; }
     .login-title { font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 4px; }
     .login-sub { font-size: 12px; color: #475569; margin-bottom: 20px; }
@@ -72,6 +71,11 @@
     .form-group textarea { resize: vertical; }
     .form-hint { font-size: 10px; color: #334155; margin-top: 3px; }
 
+    .keyword-suggestions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .keyword-chip { background: #1e3a5f; border: 1px solid #2563eb50; border-radius: 4px; color: #60a5fa; padding: 3px 7px; font-size: 10px; cursor: pointer; transition: all 0.15s; }
+    .keyword-chip:hover { background: #2563eb; color: #fff; border-color: #3b82f6; }
+    .keyword-chips-label { font-size: 10px; color: #334155; margin-top: 6px; margin-bottom: 3px; }
+
     .save-btn { width: 100%; background: linear-gradient(135deg, #2563eb, #3b82f6); color: #fff; border: none; padding: 9px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.2s; margin-top: 4px; }
     .save-btn:hover { opacity: 0.9; }
 
@@ -113,7 +117,6 @@
     <div class="plan-badge" id="plan-badge">Free</div>
   </div>
 
-  <!-- LOGIN SCREEN -->
   <div id="login-screen">
     <div style="margin-top:4px;">
       <div class="login-title">Sign In</div>
@@ -134,7 +137,6 @@
     </div>
   </div>
 
-  <!-- MAIN APP (hidden until logged in) -->
   <div id="main-app" style="display:none;">
     <div class="tabs">
       <div class="tab active" data-tab="profile">Profile</div>
@@ -142,7 +144,6 @@
       <div class="tab" data-tab="howto">How To</div>
     </div>
 
-    <!-- PROFILE TAB -->
     <div class="tab-content active" id="tab-profile">
       <div class="section">
         <div class="section-title">Account</div>
@@ -202,8 +203,11 @@
           </select>
         </div>
         <div class="form-group">
-          <label>Key Services (comma separated)</label>
-          <input type="text" id="services" placeholder="e.g. pizza, delivery, dine-in">
+          <label>SEO Keywords</label>
+          <input type="text" id="keywords" placeholder="Select a business type to auto-generate">
+          <div class="form-hint">Used in AI responses to boost local SEO. Edit freely.</div>
+          <div class="keyword-chips-label" id="chips-label" style="display:none;">+ Add suggested keywords:</div>
+          <div class="keyword-suggestions" id="keyword-suggestions"></div>
         </div>
         <div class="form-group">
           <label>Response Tone</label>
@@ -231,7 +235,6 @@
       </div>
     </div>
 
-    <!-- HISTORY TAB -->
     <div class="tab-content" id="tab-history">
       <div class="history-list" id="history-list">
         <div class="history-empty">No responses yet. Generate your first AI response!</div>
@@ -239,7 +242,6 @@
       <button class="history-clear" id="clear-history">Clear History</button>
     </div>
 
-    <!-- HOW TO TAB -->
     <div class="tab-content" id="tab-howto">
       <div class="section">
         <div class="section-title">How It Works</div>
@@ -252,7 +254,7 @@
   </div>
 
   <div class="footer">
-    <span>RankSniper v1.4</span>
+    <span>RankSniper v1.5</span>
     <a href="https://getranksniper.com" target="_blank">getranksniper.com</a>
   </div>
 
