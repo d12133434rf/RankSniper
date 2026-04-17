@@ -24,7 +24,6 @@
     if (msg.type === 'RS_AUTH_UPDATE') {
       userPlan = msg.plan || 'free';
       isLoggedIn = true;
-      if (msg.token) rsToken = msg.token;
     }
   });
 
@@ -43,12 +42,8 @@
       chrome.storage.local.set({ rsHistory: history.slice(0, 50) });
     });
 
-    // Save to backend — re-read token in case it wasn't loaded yet
-    const storedToken = rsToken || await new Promise(resolve => {
-      chrome.storage.local.get(['rsToken'], r => resolve(r.rsToken || null));
-    });
-    if (storedToken) {
-      rsToken = storedToken;
+    // Save to backend
+    if (rsToken) {
       try {
         await fetch(BACKEND + '/api/responses/save', {
           method: 'POST',
