@@ -132,7 +132,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
       if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, { type: 'RS_AUTH_UPDATE', plan, token: null }).catch(() => {});
+        chrome.storage.local.get(['rsToken'], r => {
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'RS_AUTH_UPDATE', plan, token: r.rsToken || null }).catch(() => {});
+      });
       }
     });
   }
