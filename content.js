@@ -1,9 +1,11 @@
-// RankSniper - Content Script v1.4
+// RankSniper - Content Script v1.5
 (function () {
+  const BACKEND = 'https://ranksniperweb-production.up.railway.app';
   let businessProfile = null;
   let geminiApiKey = null;
   let userPlan = 'free';
   let isLoggedIn = false;
+  let rsToken = null;
 
   function loadProfile() {
     return new Promise(resolve => {
@@ -12,12 +14,12 @@
         geminiApiKey = result.geminiApiKey || null;
         userPlan = result.rsPlan || 'free';
         isLoggedIn = !!(result.rsToken && result.rsUser);
+        rsToken = result.rsToken || null;
         resolve(result);
       });
     });
   }
 
-  // Listen for auth updates from popup
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'RS_AUTH_UPDATE') {
       userPlan = msg.plan || 'free';
@@ -25,7 +27,9 @@
     }
   });
 
-  function saveToHistory(reviewerName, rating, reviewText, response) {
+  // Save to both Chrome local storage AND backend Supabase
+  async function saveToHistory(reviewerName, rating, reviewText, response, score) {
+    // Save locally
     chrome.storage.local.get(['rsHistory'], result => {
       const history = result.rsHistory || [];
       history.unshift({
@@ -37,6 +41,26 @@
       });
       chrome.storage.local.set({ rsHistory: history.slice(0, 50) });
     });
+
+    // Save to backend
+    if (rsToken) {
+      try {
+        await fetch(BACKEND + '/api/responses/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + rsToken },
+          body: JSON.stringify({
+            reviewerName,
+            rating,
+            reviewText: reviewText.substring(0, 500),
+            responseText: response,
+            businessName: businessProfile?.businessName || '',
+            score: score || null
+          })
+        });
+      } catch (err) {
+        console.log('[RankSniper] Could not save to backend:', err.message);
+      }
+    }
   }
 
   function scoreResponse(text, profile) {
@@ -124,13 +148,15 @@
     const tone = p.tone || 'friendly';
     const firstName = reviewData.reviewerName.split(' ')[0];
     const custom = p.customInstructions ? '\nAdditional instructions: ' + p.customInstructions : '';
+    const keywords = p.keywords || p.services || '';
 
     let prompt;
     if (instruction && previousResponse) {
       prompt = 'You wrote this response to a Google review for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants you to change it: "' + instruction + '"\n\nRewrite the response keeping it natural and human. Start with "Hi ' + firstName + ',". Under 150 words. Avoid em dashes. Include city (' + city + ') and business name (' + biz + ') naturally.' + custom + '\n\nWrite only the new response, nothing else.';
     } else {
       const g = reviewData.rating <= 2 ? 'Negative review: apologize sincerely and explain improvements.' : reviewData.rating === 3 ? 'Mixed review: thank them and acknowledge issues.' : 'Positive review: thank them warmly.';
-      prompt = 'Respond to this Google review for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + ',". ' + g + ' Include city and business name. Under 150 words. Write in a natural, human way - avoid em dashes, overly formal language, and AI-sounding phrases. Use simple conversational sentences.' + custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response.';
+      const kwPrompt = keywords ? ' Naturally include some of these SEO keywords where they fit: ' + keywords + '.' : '';
+      prompt = 'Respond to this Google review for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + ',". ' + g + ' Include city and business name.' + kwPrompt + ' Under 150 words. Write in a natural, human way - avoid em dashes, overly formal language, and AI-sounding phrases. Use simple conversational sentences.' + custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response.';
     }
 
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 200, temperature: 0.7 } }) });
@@ -142,7 +168,6 @@
   async function handleDraftClick(btn, reviewData, card) {
     await loadProfile();
 
-    // Check if logged in and has active plan
     if (!isLoggedIn) {
       showNotice('Please log in via the RankSniper popup to use this feature.', 'error');
       return;
@@ -218,21 +243,26 @@
     }, 100);
 
     panel.querySelector('.rs-panel-close').addEventListener('click', () => panel.remove());
+
     panel.querySelector('.rs-copy-btn').addEventListener('click', () => {
       const text = panel.querySelector('.rs-response-text').value;
+      const currentScore = scoreResponse(text, businessProfile);
       navigator.clipboard.writeText(text);
-      saveToHistory(reviewData.reviewerName, reviewData.rating, reviewData.reviewText, text);
+      saveToHistory(reviewData.reviewerName, reviewData.rating, reviewData.reviewText, text, currentScore);
       const b = panel.querySelector('.rs-copy-btn');
       b.textContent = 'Copied!';
       setTimeout(() => b.textContent = 'Copy', 2000);
     });
+
     panel.querySelector('.rs-paste-btn').addEventListener('click', () => {
       const text = panel.querySelector('.rs-response-text').value;
-      saveToHistory(reviewData.reviewerName, reviewData.rating, reviewData.reviewText, text);
+      const currentScore = scoreResponse(text, businessProfile);
+      saveToHistory(reviewData.reviewerName, reviewData.rating, reviewData.reviewText, text, currentScore);
       const rb = card.querySelector('.F87tLd') || card.querySelector('div.lGXsGc button') || card.querySelector('button[aria-label*="Reply"]');
       if (rb) rb.click();
       setTimeout(() => pasteIntoTextarea(text), 1000);
     });
+
     panel.querySelector('.rs-regen-btn').addEventListener('click', async () => {
       panel.remove();
       const fb = card.querySelector('.ranksniper-btn');
@@ -335,7 +365,7 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.4 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
+    console.log('[RankSniper] v1.5 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
     setTimeout(injectButtons, 2000);
     setTimeout(injectButtons, 4000);
   }
