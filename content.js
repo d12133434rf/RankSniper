@@ -159,11 +159,15 @@
 
     let prompt;
     if (instruction && previousResponse) {
-      prompt = 'You wrote this response to a Google review for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants you to change it: "' + instruction + '"\n\nRewrite the response keeping it natural and human. Start with "Hi ' + firstName + ',". Under 150 words. Avoid em dashes. Include city (' + city + ') and business name (' + biz + ') naturally.' + custom + '\n\nWrite only the new response, nothing else.';
+      prompt = 'You wrote this response to a Google review for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants you to change it: "' + instruction + '"\n\nRewrite the response keeping it natural and human. Start with "Hi ' + firstName + '," on its own line. Under 120 words. Never use dashes, hyphens, or em dashes anywhere. Write like a real business owner, not a corporate email. Keep it short and genuine.' + custom + '\n\nWrite only the new response, nothing else.';
     } else {
       const g = reviewData.rating <= 2 ? 'Negative review: apologize sincerely and explain improvements.' : reviewData.rating === 3 ? 'Mixed review: thank them and acknowledge issues.' : 'Positive review: thank them warmly.';
-      const kwPrompt = keywords ? ' Naturally include some of these SEO keywords where they fit: ' + keywords + '.' : '';
-      prompt = 'Respond to this Google review for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + ',". ' + g + ' Include city and business name.' + kwPrompt + ' Under 150 words. Write in a natural, human way - avoid em dashes, overly formal language, and AI-sounding phrases. Use simple conversational sentences.' + custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response.';
+      // Build keyword prompt — pick 3-5 keywords to weave in naturally
+      const kwList = keywords ? keywords.split(',').map(k => k.trim()).filter(Boolean) : [];
+      const kwPrompt = kwList.length > 0
+        ? ' Naturally weave in 3 to 5 of these SEO keywords where they fit organically in the response (replace [City] with ' + city + '): ' + kwList.slice(0, 8).join(', ') + '. Do not force them — only use ones that fit naturally.'
+        : '';
+      prompt = 'Respond to this Google review for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + '," on its own line. ' + g + ' Naturally mention the business name and city once each.' + kwPrompt + ' Under 120 words. Write like a real business owner texting a customer. Use short sentences. Never use dashes, hyphens, em dashes, or any kind of dash anywhere in the response. Never use corporate phrases like "we are thrilled", "it means a lot", "reviews like yours", "we pride ourselves", or "we strive". Never stuff keywords unnaturally. Sound warm and genuine.' + custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response, nothing else.';
     }
 
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 200, temperature: 0.7 } }) });
