@@ -106,12 +106,14 @@
   function getKeywords(text, profile) {
     const lower = text.toLowerCase();
     const found = [];
-    if (profile?.city && lower.includes(profile.city.toLowerCase())) found.push(profile.city);
+    if (profile?.city) {
+      const cityFirst = profile.city.split(',')[0].trim().toLowerCase();
+      if (lower.includes(cityFirst)) found.push(profile.city.split(',')[0].trim());
+    }
     if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) found.push(profile.businessName);
-    if (profile?.services) {
-      for (const s of profile.services.split(',').map(x => x.trim())) {
-        if (s && lower.includes(s.toLowerCase())) found.push(s);
-      }
+    const keywordSources = [profile?.services, profile?.keywords].filter(Boolean).join(',');
+    for (const s of keywordSources.split(',').map(x => x.trim())) {
+      if (s && lower.includes(s.toLowerCase()) && !found.includes(s)) found.push(s);
     }
     return found;
   }
@@ -206,8 +208,15 @@
     const scoreColor = score >= 80 ? '#22c55e' : score >= 60 ? '#f59e0b' : '#ef4444';
     const keywords = getKeywords(responseText, businessProfile);
     const missingKeywords = [];
-    if (businessProfile?.city && !responseText.toLowerCase().includes(businessProfile.city.toLowerCase())) missingKeywords.push(businessProfile.city);
-    if (businessProfile?.businessName && !responseText.toLowerCase().includes(businessProfile.businessName.toLowerCase())) missingKeywords.push(businessProfile.businessName);
+    // Check city — match first word of city in case format differs (e.g. "Sun City, AZ" vs "Sun City")
+    if (businessProfile?.city) {
+      const cityFirst = businessProfile.city.split(',')[0].trim().toLowerCase();
+      if (!responseText.toLowerCase().includes(cityFirst)) missingKeywords.push(businessProfile.city);
+    }
+    // Check business name
+    if (businessProfile?.businessName && !responseText.toLowerCase().includes(businessProfile.businessName.toLowerCase())) {
+      missingKeywords.push(businessProfile.businessName);
+    }
 
     panel.innerHTML = `
       <div class="rs-panel-header">
