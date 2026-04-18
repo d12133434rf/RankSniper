@@ -69,41 +69,41 @@
   }
 
   function scoreResponse(text, profile) {
-    let score = 62;
+    let score = 44;
     const lower = text.toLowerCase();
     const words = text.split(/\s+/).length;
 
-    // Length: ideal 60-120 words
-    if (words >= 60 && words <= 120) score += 12;
-    else if (words >= 40 && words < 60) score += 6;
-    else if (words > 120 && words <= 160) score += 4;
+    // Length: ideal 60-120 words (+10), too short/long = less
+    if (words >= 60 && words <= 120) score += 10;
+    else if (words >= 40 && words < 60) score += 5;
+    else if (words > 120 && words <= 160) score += 3;
     else if (words < 40) score -= 8;
 
-    // Greeting
-    if (lower.startsWith('hi ') && !lower.startsWith('hi there')) score += 6;
-    else if (lower.startsWith('hi there')) score += 2;
+    // Greeting (+5)
+    if (lower.startsWith('hi ') && !lower.startsWith('hi there')) score += 5;
+    else if (lower.startsWith('hi there')) score += 1;
 
-    // City mentioned
-    if (profile?.city && lower.includes(profile.city.split(',')[0].trim().toLowerCase())) score += 7;
+    // City mentioned (+8)
+    if (profile?.city && lower.includes(profile.city.split(',')[0].trim().toLowerCase())) score += 8;
 
-    // Business name mentioned
-    if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 7;
+    // Business name mentioned (+8)
+    if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 8;
 
-    // CTA
+    // CTA (+6)
     const hasCTA = lower.includes('come back') || lower.includes('visit us') || lower.includes('see you') ||
       lower.includes('give us another') || lower.includes('contact us') || lower.includes('stop by') ||
       lower.includes('welcome you back') || lower.includes('hope to see') || lower.includes('love to have you');
-    if (hasCTA) score += 5;
+    if (hasCTA) score += 6;
 
-    // No dashes
+    // No dashes (+3)
     if (!text.includes('—') && !text.includes(' - ')) score += 3;
 
-    // SEO keywords bonus — 3 pts per keyword, max 12 pts (4 keywords)
+    // SEO keywords — 4 pts per keyword, max 16 pts (4 keywords)
     const kwSources = [profile?.keywords, profile?.services].filter(Boolean).join(',');
     if (kwSources) {
       const kwList = kwSources.split(',').map(k => k.trim().replace(/\[City\]/gi, '').trim().toLowerCase()).filter(Boolean);
       const kwFound = kwList.filter(k => k && lower.includes(k)).length;
-      score += Math.min(kwFound * 3, 12);
+      score += Math.min(kwFound * 4, 22);
     }
 
     // Penalties for AI fluff
