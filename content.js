@@ -69,55 +69,35 @@
   }
 
   function scoreResponse(text, profile) {
-    let score = 50;
+    let score = 60;
     const lower = text.toLowerCase();
     const words = text.split(/\s+/).length;
 
-    // Length scoring — ideal is 60-120 words
-    if (words >= 60 && words <= 120) score += 12;
-    else if (words >= 40 && words < 60) score += 7;
-    else if (words > 120 && words <= 150) score += 6;
-    else if (words < 40) score -= 5;
+    if (words >= 60 && words <= 120) score += 15;
+    else if (words >= 40 && words < 60) score += 8;
+    else if (words > 120 && words <= 160) score += 8;
+    else if (words < 40) score += 0;
+    else score += 2;
 
-    // Starts with Hi [Name]
     if (lower.startsWith('hi ') && !lower.startsWith('hi there')) score += 8;
-    else if (lower.startsWith('hi there')) score += 2;
+    else if (lower.startsWith('hi there')) score += 3;
 
-    // City mentioned
-    if (profile?.city) {
-      const cityFirst = profile.city.split(',')[0].trim().toLowerCase();
-      if (lower.includes(cityFirst)) score += 8;
-    }
+    if (profile?.city && lower.includes(profile.city.toLowerCase())) score += 6;
+    if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 6;
 
-    // Business name mentioned
-    if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 8;
-
-    // SEO keywords used — up to 10 points for using keywords
-    const kwSources = [profile?.keywords, profile?.services].filter(Boolean).join(',');
-    const kwList = kwSources.split(',').map(k => k.trim().replace(/\[City\]/gi, '').trim().toLowerCase()).filter(Boolean);
-    const kwFound = kwList.filter(k => k && lower.includes(k)).length;
-    score += Math.min(kwFound * 3, 10);
-
-    // Has a call to action
     const hasCTA = lower.includes('come back') || lower.includes('visit us') || lower.includes('see you') ||
       lower.includes('give us another') || lower.includes('contact us') || lower.includes('stop by') ||
-      lower.includes('welcome you back') || lower.includes('hope to see') || lower.includes('love to have you') ||
-      lower.includes('look forward') || lower.includes('see you soon') || lower.includes('next time');
+      lower.includes('welcome you back') || lower.includes('hope to see') || lower.includes('love to have you');
     if (hasCTA) score += 8;
 
-    // No dashes
-    if (!text.includes('—') && !text.includes(' - ')) score += 4;
+    if (!text.includes('—')) score += 3;
 
-    // Generic AI phrases penalty
     const genericPhrases = ['we strive to', 'we apologize for any inconvenience', 'at your earliest convenience',
       'do not hesitate', 'please do not hesitate', 'we are committed to', 'it is our goal',
-      'rest assured', 'we value your feedback', 'thank you for bringing this to our attention',
-      'we pride ourselves', 'it means a lot', 'reviews like yours', 'we are thrilled',
-      'we are delighted', 'we are so pleased'];
+      'we take pride', 'rest assured', 'we value your feedback', 'thank you for bringing this to our attention'];
     const genericCount = genericPhrases.filter(p => lower.includes(p)).length;
     score -= genericCount * 8;
 
-    // Missing greeting penalty
     if (!lower.includes('hi') && !lower.includes('thank')) score -= 10;
 
     return Math.min(Math.max(Math.round(score), 0), 100);
@@ -126,45 +106,12 @@
   function getKeywords(text, profile) {
     const lower = text.toLowerCase();
     const found = [];
-    if (profile?.city) {
-      const cityFirst = profile.city.split(',')[0].trim().toLowerCase();
-      if (lower.includes(cityFirst)) found.push(profile.city.split(',')[0].trim());
-    }
+    if (profile?.city && lower.includes(profile.city.toLowerCase())) found.push(profile.city);
     if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) found.push(profile.businessName);
-    // Check saved keywords
-    const keywordSources = [profile?.services, profile?.keywords].filter(Boolean).join(',');
-    for (const s of keywordSources.split(',').map(x => x.trim().replace(/\[City\]/gi, profile?.city?.split(',')?.[0]?.trim() || ''))) {
-      if (s && lower.includes(s.toLowerCase()) && !found.includes(s)) found.push(s);
-    }
-    // Also detect common SEO terms found in the response
-    const commonTerms = [
-      // Nail salon
-      'gel manicure', 'acrylic nails', 'nail salon', 'nail art', 'pedicure', 'dip powder', 'nail extensions', 'sns nails', 'luxury pedicure',
-      // Spa / massage
-      'deep tissue massage', 'couples massage', 'hot stone massage', 'swedish massage', 'massage therapy', 'prenatal massage', 'relaxation massage', 'day spa', 'facial',
-      // Dental
-      'teeth whitening', 'dental implants', 'teeth cleaning', 'family dentist', 'cosmetic dentist', 'emergency dentist', 'invisalign', 'dental crowns',
-      // Auto shop
-      'oil change', 'brake repair', 'auto repair', 'tire rotation', 'transmission repair', 'car inspection', 'engine repair', 'ac repair', 'check engine',
-      // Gym
-      'personal trainer', 'fitness classes', 'weight loss', 'strength training', 'yoga classes', 'gym membership', 'workout classes', 'bodybuilding',
-      // Hair salon
-      'hair salon', 'balayage', 'keratin treatment', 'hair extensions', 'highlights', 'color correction', 'bridal hair', 'haircut and blowout',
-      // Barber
-      'beard trim', 'hot towel shave', 'skin fade', 'hair fade', 'lineup', 'edge up', 'kids haircut',
-      // Restaurant
-      'fresh ingredients', 'online ordering', 'family restaurant', 'casual dining', 'takeout', 'delivery', 'dine in', 'lunch specials', 'happy hour', 'outdoor seating',
-      // Retail
-      'locally owned', 'small business', 'unique gifts', 'same day pickup', 'gift shop', 'boutique', 'shop local',
-      // Real estate
-      'homes for sale', 'real estate agent', 'first time homebuyer', 'home valuation', 'luxury homes', 'investment properties', 'top realtor',
-      // Law firm
-      'personal injury', 'free consultation', 'family lawyer', 'criminal defense', 'estate planning', 'immigration lawyer', 'divorce lawyer',
-      // Medical
-      'primary care', 'urgent care', 'family doctor', 'same day appointment', 'accepting new patients', 'telehealth', 'walk in clinic'
-    ];
-    for (const term of commonTerms) {
-      if (lower.includes(term) && !found.includes(term)) found.push(term);
+    if (profile?.services) {
+      for (const s of profile.services.split(',').map(x => x.trim())) {
+        if (s && lower.includes(s.toLowerCase())) found.push(s);
+      }
     }
     return found;
   }
@@ -211,15 +158,11 @@
 
     let prompt;
     if (instruction && previousResponse) {
-      prompt = 'You wrote this response to a Google review for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants you to change it: "' + instruction + '"\n\nRewrite the response keeping it natural and human. Start with "Hi ' + firstName + '," on its own line. Under 120 words. Never use dashes, hyphens, or em dashes anywhere. Write like a real business owner, not a corporate email. Keep it short and genuine.' + custom + '\n\nWrite only the new response, nothing else.';
+      prompt = 'You wrote this response to a Google review for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants you to change it: "' + instruction + '"\n\nRewrite the response keeping it natural and human. Start with "Hi ' + firstName + ',". Under 150 words. Avoid em dashes. Include city (' + city + ') and business name (' + biz + ') naturally.' + custom + '\n\nWrite only the new response, nothing else.';
     } else {
       const g = reviewData.rating <= 2 ? 'Negative review: apologize sincerely and explain improvements.' : reviewData.rating === 3 ? 'Mixed review: thank them and acknowledge issues.' : 'Positive review: thank them warmly.';
-      // Build keyword prompt — only use keywords that fit naturally
-      const kwList = keywords ? keywords.split(',').map(k => k.trim().replace(/\[City\]/gi, city)).filter(Boolean) : [];
-      const kwPrompt = kwList.length > 0
-        ? ' If it fits naturally in the conversation, mention 1 or 2 of these: ' + kwList.slice(0, 6).join(', ') + '. Never force them or list multiple at the end of the response. Only use if they flow naturally.'
-        : '';
-      prompt = 'Respond to this Google review for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + '," on its own line. ' + g + ' Naturally mention the business name and city once each.' + kwPrompt + ' Under 120 words. Write like a real business owner texting a customer. Use short sentences. Never use dashes, hyphens, em dashes, or any kind of dash anywhere in the response. Never use corporate phrases like "we are thrilled", "it means a lot", "reviews like yours", "we pride ourselves", or "we strive". Never stuff keywords unnaturally. Sound warm and genuine.' + custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response, nothing else.';
+      const kwPrompt = keywords ? ' Naturally include some of these SEO keywords where they fit: ' + keywords + '.' : '';
+      prompt = 'Respond to this Google review for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + ',". ' + g + ' Include city and business name.' + kwPrompt + ' Under 150 words. Write in a natural, human way - avoid em dashes, overly formal language, and AI-sounding phrases. Use simple conversational sentences.' + custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response.';
     }
 
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 200, temperature: 0.7 } }) });
@@ -264,15 +207,8 @@
     const scoreColor = score >= 80 ? '#22c55e' : score >= 60 ? '#f59e0b' : '#ef4444';
     const keywords = getKeywords(responseText, businessProfile);
     const missingKeywords = [];
-    // Check city — match first word of city in case format differs (e.g. "Sun City, AZ" vs "Sun City")
-    if (businessProfile?.city) {
-      const cityFirst = businessProfile.city.split(',')[0].trim().toLowerCase();
-      if (!responseText.toLowerCase().includes(cityFirst)) missingKeywords.push(businessProfile.city);
-    }
-    // Check business name
-    if (businessProfile?.businessName && !responseText.toLowerCase().includes(businessProfile.businessName.toLowerCase())) {
-      missingKeywords.push(businessProfile.businessName);
-    }
+    if (businessProfile?.city && !responseText.toLowerCase().includes(businessProfile.city.toLowerCase())) missingKeywords.push(businessProfile.city);
+    if (businessProfile?.businessName && !responseText.toLowerCase().includes(businessProfile.businessName.toLowerCase())) missingKeywords.push(businessProfile.businessName);
 
     panel.innerHTML = `
       <div class="rs-panel-header">
@@ -388,13 +324,11 @@
   }
 
   function injectReplyPanelButton() {
-    // Inject into the slide-in "Reply to review" panel on Google Search
     const replyBtn = document.querySelector('[jsname="hrGhad"]');
     if (!replyBtn) return;
     const container = replyBtn.closest('.FkJOzc');
     if (!container || container.querySelector('.ranksniper-btn')) return;
 
-    // Get review text from the panel
     const article = document.querySelector('article[aria-label="Review"]');
     const reviewText = article ? article.innerText.trim() : '';
     const reviewerEl = document.querySelector('.hJNnEe, .Uqj3Wb, [data-review-id] .d4r55');
@@ -437,7 +371,6 @@
         const replyBtn = card.querySelector('.F87tLd');
         if (replyBtn) {
           replyBtn.insertAdjacentElement('afterend', btn);
-          // Force parent span to flex so button sits inline next to Reply
           const parent = replyBtn.parentElement;
           if (parent) {
             parent.style.display = 'flex';
