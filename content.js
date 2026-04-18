@@ -405,6 +405,13 @@
         const replyBtn = card.querySelector('.F87tLd');
         if (replyBtn) {
           replyBtn.insertAdjacentElement('afterend', btn);
+          // Force parent span to flex so button sits inline next to Reply
+          const parent = replyBtn.parentElement;
+          if (parent) {
+            parent.style.display = 'flex';
+            parent.style.alignItems = 'center';
+            parent.style.gap = '8px';
+          }
         } else {
           const actionRow = card.querySelector('.dwrWYe');
           if (actionRow) actionRow.appendChild(btn);
