@@ -1,263 +1,375 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>RankSniper</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { width: 320px; background: #0a0f1e; color: #e2e8f0; font-family: 'Google Sans', system-ui, sans-serif; font-size: 13px; }
+const API = 'https://ranksniperweb-production.up.railway.app';
 
-    .header { padding: 14px 16px; background: linear-gradient(135deg, #0f172a, #1e293b); border-bottom: 1px solid #1e293b; display: flex; align-items: center; gap: 10px; }
-    .logo { font-size: 20px; font-weight: 800; color: #3b82f6; line-height: 1; }
-    .logo-info { flex: 1; }
-    .logo-name { font-size: 15px; font-weight: 800; color: #fff; }
-    .logo-sub { font-size: 10px; color: #475569; margin-top: 1px; }
-    .plan-badge { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 3px 8px; font-size: 10px; font-weight: 700; color: #60a5fa; text-transform: uppercase; }
+// SEO-optimized entity-based keywords by business type
+const SEO_KEYWORDS = {
+  'restaurant': ['best restaurant in [City]', 'fresh ingredients', 'dine-in [City]', 'online ordering', 'family restaurant', 'lunch and dinner', 'takeout and delivery', 'local favorite restaurant', 'casual dining [City]', 'best food in [City]', 'neighborhood restaurant', 'affordable dining'],
+  'barber shop': ["men's haircut [City]", 'beard trim [City]', 'hot towel shave', 'best barber in [City]', 'skin fade', 'hair fade [City]', 'walk-in barber', 'kids haircut', 'barber near me', 'clean cuts [City]', 'lineup and edge up', 'affordable haircut'],
+  'hair salon': ['hair salon [City]', 'balayage [City]', 'keratin treatment', 'haircut and blowout [City]', 'highlights [City]', 'hair extensions [City]', 'color correction', 'bridal hair [City]', 'best hair salon near me', 'women haircut [City]', 'hair coloring specialist', 'salon near me'],
+  'nail salon': ['nail salon [City]', 'gel manicure [City]', 'acrylic nails [City]', 'nail art [City]', 'pedicure [City]', 'dip powder nails', 'luxury pedicure', 'best nail salon near me', 'nail extensions', 'sns nails', 'clean nail salon', 'affordable nails [City]'],
+  'auto shop': ['auto repair [City]', 'brake repair [City]', 'oil change [City]', 'transmission repair', 'check engine light [City]', 'tire rotation [City]', 'car inspection [City]', 'engine repair', 'AC repair [City]', 'honest mechanic [City]', 'affordable auto repair', 'same day auto service'],
+  'dental office': ['dentist [City]', 'teeth whitening [City]', 'emergency dentist [City]', 'dental implants [City]', 'teeth cleaning [City]', 'cosmetic dentist [City]', 'family dentist [City]', 'Invisalign [City]', 'affordable dentist', 'painless dentist [City]', 'dental crowns [City]', 'accepting new patients'],
+  'gym': ['gym [City]', 'personal trainer [City]', 'fitness classes [City]', 'weight loss [City]', 'gym near me', '24 hour gym [City]', 'strength training [City]', 'yoga [City]', 'affordable gym membership', 'workout classes [City]', 'fitness center [City]', 'bodybuilding gym [City]'],
+  'spa': ['massage [City]', 'deep tissue massage [City]', 'couples massage [City]', 'hot stone massage [City]', 'spa near me', 'relaxation massage [City]', 'prenatal massage [City]', 'facial [City]', 'day spa [City]', 'swedish massage [City]', 'massage therapy [City]', 'best spa in [City]'],
+  'retail store': ['shop [City]', 'local boutique [City]', 'gift shop [City]', 'unique gifts [City]', 'locally owned store', 'same day pickup', 'affordable shopping [City]', 'best store in [City]', 'online and in store', 'shop local [City]', 'small business [City]', 'quality products [City]'],
+  'real estate': ['real estate agent [City]', 'homes for sale [City]', 'buy a home [City]', 'sell my home [City]', 'first time homebuyer [City]', 'real estate [City]', 'home valuation [City]', 'luxury homes [City]', 'investment properties [City]', 'top realtor [City]', 'best real estate agent', 'local real estate expert'],
+  'law firm': ['lawyer [City]', 'personal injury lawyer [City]', 'free consultation [City]', 'family lawyer [City]', 'criminal defense attorney [City]', 'estate planning [City]', 'immigration lawyer [City]', 'business attorney [City]', 'divorce lawyer [City]', 'affordable attorney [City]', 'law firm near me', 'experienced lawyer [City]'],
+  'medical office': ['doctor [City]', 'primary care [City]', 'same day appointment [City]', 'accepting new patients', 'urgent care [City]', 'family doctor [City]', 'physical exam [City]', 'insurance accepted [City]', 'walk in clinic [City]', 'telehealth [City]', 'affordable healthcare [City]', 'best doctor near me'],
+  'other': ['best [City] service', 'top rated [City]', 'near me', 'locally owned [City]', 'same day service [City]', 'free consultation', 'affordable [City]', 'trusted [City]', 'experienced team [City]', 'best in [City]', 'highly rated [City]', 'small business [City]']
+};
 
-    #login-screen { padding: 24px 20px; }
-    .login-title { font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 4px; }
-    .login-sub { font-size: 12px; color: #475569; margin-bottom: 20px; }
-    .login-group { margin-bottom: 12px; }
-    .login-group label { display: block; font-size: 10px; color: #475569; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
-    .login-group input { width: 100%; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; padding: 8px 10px; font-size: 13px; outline: none; font-family: inherit; transition: border-color 0.2s; }
-    .login-group input:focus { border-color: #3b82f6; }
-    .login-btn { width: 100%; background: linear-gradient(135deg, #2563eb, #3b82f6); color: #fff; border: none; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; margin-top: 4px; transition: opacity 0.2s; }
-    .login-btn:hover { opacity: 0.9; }
-    .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-    .login-error { font-size: 11px; color: #ef4444; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: 6px; padding: 8px 10px; margin-top: 10px; display: none; }
-    .login-footer { text-align: center; margin-top: 16px; font-size: 11px; color: #334155; }
-    .login-footer a { color: #3b82f6; text-decoration: none; }
+document.addEventListener('DOMContentLoaded', () => {
 
-    .tabs { display: flex; border-bottom: 1px solid #1e293b; }
-    .tab { flex: 1; padding: 10px; text-align: center; font-size: 11px; font-weight: 700; color: #475569; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.2s; }
-    .tab.active { color: #3b82f6; border-bottom: 2px solid #3b82f6; }
-    .tab:hover { color: #94a3b8; }
+  chrome.storage.local.get(['rsToken', 'rsUser', 'rsPlan'], async result => {
+    if (result.rsToken && result.rsUser) {
+      try {
+        const res = await fetch(API + '/api/auth/me', {
+          headers: { 'Authorization': 'Bearer ' + result.rsToken }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const freshPlan = data.user?.plan || 'free';
+          chrome.storage.local.set({ rsPlan: freshPlan, ranksniperPlan: freshPlan });
+          showMainApp(result.rsUser, freshPlan);
+        } else {
+          chrome.storage.local.remove(['rsToken', 'rsUser', 'rsPlan', 'ranksniperPlan']);
+          showLoginScreen();
+        }
+      } catch (err) {
+        showMainApp(result.rsUser, result.rsPlan || 'free');
+      }
+    } else {
+      showLoginScreen();
+    }
+  });
 
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
+  document.getElementById('login-btn').addEventListener('click', async () => {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const btn = document.getElementById('login-btn');
+    const errorEl = document.getElementById('login-error');
 
-    .section { padding: 12px 16px; border-bottom: 1px solid #0f172a; }
-    .section-title { font-size: 10px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; }
+    if (!email || !password) { showError('Please enter your email and password.'); return; }
 
-    .status-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-    .status-text { font-size: 12px; color: #94a3b8; }
-    .status-text strong { color: #e2e8f0; }
+    btn.disabled = true;
+    btn.textContent = 'Logging in...';
+    errorEl.style.display = 'none';
 
-    .user-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-    .user-email { font-size: 11px; color: #60a5fa; font-weight: 600; }
-    .logout-btn { background: none; border: 1px solid #334155; border-radius: 5px; color: #475569; padding: 3px 8px; font-size: 10px; cursor: pointer; font-family: inherit; }
-    .logout-btn:hover { color: #ef4444; border-color: #ef444430; }
+    try {
+      const res = await fetch(API + '/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
 
-    .usage-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 11px; color: #475569; }
-    .usage-row span:last-child { color: #94a3b8; font-weight: 600; }
-    .usage-bar { height: 4px; background: #1e293b; border-radius: 2px; overflow: hidden; }
-    .usage-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 2px; }
+      if (!res.ok) {
+        showError(data.error || 'Login failed. Please try again.');
+        btn.disabled = false;
+        btn.textContent = 'Log In';
+        return;
+      }
 
-    .profile-selector { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
-    .profile-selector select { flex: 1; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; padding: 6px 8px; font-size: 12px; outline: none; font-family: inherit; }
-    .profile-selector select option { background: #1e293b; }
-    .btn-small { background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #94a3b8; padding: 6px 10px; font-size: 11px; cursor: pointer; font-family: inherit; white-space: nowrap; }
-    .btn-small:hover { color: #e2e8f0; border-color: #475569; }
-    .btn-small.danger { color: #ef4444; border-color: #ef444430; }
-    .btn-small.danger:hover { background: #ef444410; }
+      if (data.user.plan !== 'pro') {
+        showError('No active subscription. Visit getranksniper.com to subscribe.');
+        btn.disabled = false;
+        btn.textContent = 'Log In';
+        return;
+      }
 
-    .form-group { margin-bottom: 10px; }
-    .form-group label { display: block; font-size: 10px; color: #475569; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
-    .form-group input, .form-group select, .form-group textarea { width: 100%; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; padding: 7px 10px; font-size: 12px; outline: none; font-family: inherit; transition: border-color 0.2s; }
-    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #3b82f6; }
-    .form-group select option { background: #1e293b; }
-    .form-group textarea { resize: vertical; }
-    .form-hint { font-size: 10px; color: #334155; margin-top: 3px; }
+      chrome.storage.local.set({
+        rsToken: data.token,
+        rsUser: data.user,
+        rsPlan: data.user.plan,
+        ranksniperPlan: data.user.plan
+      }, () => {
+        showMainApp(data.user, data.user.plan);
+      });
 
-    .keyword-suggestions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
-    .keyword-chip { background: #1e3a5f; border: 1px solid #2563eb50; border-radius: 4px; color: #60a5fa; padding: 3px 7px; font-size: 10px; cursor: pointer; transition: all 0.15s; }
-    .keyword-chip:hover { background: #2563eb; color: #fff; border-color: #3b82f6; }
-    .keyword-chips-label { font-size: 10px; color: #334155; margin-top: 6px; margin-bottom: 3px; }
+    } catch (err) {
+      showError('Network error. Check your connection.');
+      btn.disabled = false;
+      btn.textContent = 'Log In';
+    }
+  });
 
-    .save-btn { width: 100%; background: linear-gradient(135deg, #2563eb, #3b82f6); color: #fff; border: none; padding: 9px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.2s; margin-top: 4px; }
-    .save-btn:hover { opacity: 0.9; }
+  document.getElementById('login-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('login-btn').click();
+  });
 
-    .history-list { max-height: 400px; overflow-y: auto; }
-    .history-item { padding: 10px 16px; border-bottom: 1px solid #0f172a; }
-    .history-item:last-child { border-bottom: none; }
-    .history-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-    .history-name { font-size: 12px; font-weight: 600; color: #e2e8f0; }
-    .history-date { font-size: 10px; color: #475569; }
-    .history-rating { font-size: 11px; color: #f59e0b; margin-bottom: 4px; }
-    .history-response { font-size: 11px; color: #94a3b8; background: #0f172a; border-radius: 6px; padding: 8px; line-height: 1.4; cursor: pointer; border: 1px solid transparent; }
-    .history-response:hover { border-color: #334155; }
-    .history-empty { padding: 24px 16px; text-align: center; color: #475569; font-size: 12px; }
-    .history-clear { background: none; border: 1px solid #ef444430; color: #ef4444; padding: 8px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; margin: 8px 16px; width: calc(100% - 32px); }
+  function showError(msg) {
+    const el = document.getElementById('login-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
 
-    .step { display: flex; gap: 10px; margin-bottom: 10px; }
-    .step-num { width: 20px; height: 20px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; }
-    .step-text { font-size: 12px; color: #64748b; line-height: 1.4; }
-    .step-text strong { color: #94a3b8; }
+  function showLoginScreen() {
+    document.getElementById('login-screen').style.display = 'block';
+    document.getElementById('main-app').style.display = 'none';
+    document.getElementById('plan-badge').textContent = 'Free';
+  }
 
-    .upgrade-section { padding: 12px 16px; }
-    .upgrade-card { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid #334155; border-radius: 10px; padding: 12px; text-align: center; }
-    .upgrade-title { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px; }
-    .upgrade-sub { font-size: 11px; color: #475569; margin-bottom: 10px; }
-    .upgrade-btn { display: block; background: linear-gradient(135deg, #2563eb, #3b82f6); color: #fff; text-decoration: none; padding: 8px; border-radius: 7px; font-size: 12px; font-weight: 700; font-family: inherit; }
+  function showMainApp(user, plan) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-app').style.display = 'block';
+    document.getElementById('user-email-display').textContent = user.email;
 
-    .footer { padding: 8px 16px; display: flex; justify-content: space-between; font-size: 10px; color: #64748b; }
-    .footer a { color: #3b82f6; text-decoration: none; font-weight: 600; }
-  </style>
-</head>
-<body>
+    const badge = document.getElementById('plan-badge');
+    if (plan === 'pro') {
+      badge.textContent = 'PRO';
+      badge.style.color = '#22c55e';
+      badge.style.borderColor = '#22c55e50';
+      document.getElementById('upgrade-section').style.display = 'none';
+    } else {
+      badge.textContent = 'Free';
+      badge.style.color = '#60a5fa';
+      document.getElementById('upgrade-section').style.display = 'block';
+    }
 
-  <div class="header">
-    <div class="logo">RS</div>
-    <div class="logo-info">
-      <div class="logo-name">RankSniper</div>
-      <div class="logo-sub">Google Review AI Responder</div>
-    </div>
-    <div class="plan-badge" id="plan-badge">Free</div>
-  </div>
+    document.getElementById('usage-text').textContent = plan === 'pro' ? 'Unlimited responses' : 'Free plan — upgrade for unlimited';
+    document.getElementById('usage-fill').style.width = plan === 'pro' ? '100%' : '0%';
 
-  <div id="login-screen">
-    <div style="margin-top:4px;">
-      <div class="login-title">Sign In</div>
-      <div class="login-sub">Log in with your RankSniper account to get started.</div>
-      <div class="login-group">
-        <label>Email</label>
-        <input type="email" id="login-email" placeholder="you@business.com">
-      </div>
-      <div class="login-group">
-        <label>Password</label>
-        <input type="password" id="login-password" placeholder="Your password">
-      </div>
-      <button class="login-btn" id="login-btn">Log In</button>
-      <div class="login-error" id="login-error"></div>
-      <div class="login-footer">
-        Don't have an account? <a href="https://getranksniper.com" target="_blank">Sign up at getranksniper.com</a>
-      </div>
-    </div>
-  </div>
+    loadProfiles(() => {});
 
-  <div id="main-app" style="display:none;">
-    <div class="tabs">
-      <div class="tab active" data-tab="profile">Profile</div>
-      <div class="tab" data-tab="history">History</div>
-      <div class="tab" data-tab="howto">How To</div>
-    </div>
+    chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+      if (tabs[0]) {
+        chrome.storage.local.get(['rsToken'], r => {
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'RS_AUTH_UPDATE', plan, token: r.rsToken || null }).catch(() => {});
+      });
+      }
+    });
+  }
 
-    <div class="tab-content active" id="tab-profile">
-      <div class="section">
-        <div class="section-title">Account</div>
-        <div class="user-row">
-          <span class="user-email" id="user-email-display"></span>
-          <button class="logout-btn" id="logout-btn">Log Out</button>
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    chrome.storage.local.remove(['rsToken', 'rsUser', 'rsPlan', 'ranksniperPlan'], () => {
+      showLoginScreen();
+    });
+  });
+
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+      if (tab.dataset.tab === 'history') loadHistory();
+    });
+  });
+
+  let profiles = {};
+  let activeProfileId = null;
+
+  // Auto-generate SEO keywords when business type changes
+  document.getElementById('businessType').addEventListener('change', function() {
+    const type = this.value;
+    if (!type) return;
+    const keywords = SEO_KEYWORDS[type] || SEO_KEYWORDS['other'];
+    // Only auto-fill if keywords field is empty or was previously auto-generated
+    const keywordsField = document.getElementById('keywords');
+    if (!keywordsField.dataset.manuallyEdited) {
+      keywordsField.value = keywords.slice(0, 5).join(', ');
+    }
+  });
+
+  // Track manual keyword edits
+  document.getElementById('keywords').addEventListener('input', function() {
+    this.dataset.manuallyEdited = 'true';
+  });
+
+  // Reset manual edit flag when profile loads
+  function resetKeywordsFlag() {
+    document.getElementById('keywords').dataset.manuallyEdited = '';
+  }
+
+  function getKeywordSuggestions(type) {
+    return (SEO_KEYWORDS[type] || SEO_KEYWORDS['other']);
+  }
+
+  function renderKeywordSuggestions(type, currentKeywords) {
+    const container = document.getElementById('keyword-suggestions');
+    if (!container) return;
+    const allKeywords = getKeywordSuggestions(type);
+    const current = currentKeywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+    const suggestions = allKeywords.filter(k => !current.includes(k.toLowerCase()));
+    
+    if (suggestions.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    const label = document.getElementById('chips-label');
+    if (label) label.style.display = suggestions.length > 0 ? 'block' : 'none';
+    container.innerHTML = suggestions.slice(0, 6).map(k =>
+      `<span class="keyword-chip" data-keyword="${k}">${k}</span>`
+    ).join('');
+
+    container.querySelectorAll('.keyword-chip').forEach(chip => {
+      chip.addEventListener('click', function() {
+        const kw = this.dataset.keyword;
+        const field = document.getElementById('keywords');
+        const current = field.value.trim();
+        const existing = current.split(',').map(k => k.trim().toLowerCase());
+        if (existing.includes(kw.toLowerCase())) return;
+        field.value = current ? current + ', ' + kw : kw;
+        field.dataset.manuallyEdited = 'true';
+        renderKeywordSuggestions(document.getElementById('businessType').value, field.value);
+      });
+    });
+  }
+
+  document.getElementById('keywords').addEventListener('input', function() {
+    this.dataset.manuallyEdited = 'true';
+    const type = document.getElementById('businessType').value;
+    renderKeywordSuggestions(type, this.value);
+  });
+
+  document.getElementById('businessType').addEventListener('change', function() {
+    const type = this.value;
+    if (!type) return;
+    const keywordsField = document.getElementById('keywords');
+    if (!keywordsField.dataset.manuallyEdited) {
+      const keywords = SEO_KEYWORDS[type] || SEO_KEYWORDS['other'];
+      keywordsField.value = keywords.slice(0, 5).join(', ');
+    }
+    renderKeywordSuggestions(type, keywordsField.value);
+  });
+
+  function loadProfiles(cb) {
+    chrome.storage.sync.get(['rsProfiles', 'rsActiveProfile'], syncResult => {
+      chrome.storage.local.get(['ranksniperUsage', 'rsPlan'], localResult => {
+        const result = { ...localResult, ...syncResult };
+        profiles = result.rsProfiles || {};
+        activeProfileId = result.rsActiveProfile || null;
+        if (Object.keys(profiles).length === 0) {
+          chrome.storage.local.get(['ranksniperProfile'], old => {
+            if (old.ranksniperProfile) {
+              const id = 'profile_' + Date.now();
+              profiles[id] = { ...old.ranksniperProfile, profileName: old.ranksniperProfile.businessName || 'Main Profile' };
+              activeProfileId = id;
+              chrome.storage.sync.set({ rsProfiles: profiles, rsActiveProfile: id });
+            }
+            renderProfileSelector();
+            if (cb) cb(result);
+          });
+        } else {
+          renderProfileSelector();
+          if (cb) cb(result);
+        }
+      });
+    });
+  }
+
+  function renderProfileSelector() {
+    const sel = document.getElementById('profile-select');
+    sel.innerHTML = '';
+    const ids = Object.keys(profiles);
+    if (ids.length === 0) { sel.innerHTML = '<option value="">No profiles</option>'; clearForm(); return; }
+    ids.forEach(id => {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = profiles[id].profileName || profiles[id].businessName || 'Unnamed';
+      if (id === activeProfileId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    const currentId = activeProfileId && profiles[activeProfileId] ? activeProfileId : ids[0];
+    activeProfileId = currentId;
+    sel.value = currentId;
+    fillForm(profiles[currentId]);
+    chrome.storage.local.set({ ranksniperProfile: profiles[currentId] });
+  }
+
+  function fillForm(p) {
+    if (!p) return clearForm();
+    resetKeywordsFlag();
+    document.getElementById('profileName').value = p.profileName || '';
+    document.getElementById('businessName').value = p.businessName || '';
+    document.getElementById('city').value = p.city || '';
+    document.getElementById('businessType').value = p.businessType || '';
+    document.getElementById('keywords').value = p.keywords || p.services || '';
+    document.getElementById('tone').value = p.tone || 'friendly';
+    document.getElementById('customInstructions').value = p.customInstructions || '';
+    // Show suggestions for loaded profile
+    renderKeywordSuggestions(p.businessType || '', p.keywords || p.services || '');
+  }
+
+  function clearForm() {
+    resetKeywordsFlag();
+    ['profileName','businessName','city','keywords','customInstructions'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('businessType').value = '';
+    document.getElementById('tone').value = 'friendly';
+    document.getElementById('keyword-suggestions').innerHTML = '';
+  }
+
+  document.getElementById('profile-select').addEventListener('change', e => {
+    activeProfileId = e.target.value;
+    fillForm(profiles[activeProfileId]);
+    chrome.storage.sync.set({ rsActiveProfile: activeProfileId }); chrome.storage.local.set({ ranksniperProfile: profiles[activeProfileId] });
+  });
+
+  document.getElementById('btn-new-profile').addEventListener('click', () => {
+    const id = 'profile_' + Date.now();
+    profiles[id] = { profileName: 'New Profile', businessName: '', city: '', businessType: '', keywords: '', tone: 'friendly', customInstructions: '' };
+    activeProfileId = id;
+    chrome.storage.sync.set({ rsProfiles: profiles, rsActiveProfile: id });
+    renderProfileSelector();
+    document.getElementById('profile-select').value = id;
+    fillForm(profiles[id]);
+    document.getElementById('profileName').focus();
+  });
+
+  document.getElementById('btn-delete-profile').addEventListener('click', () => {
+    if (!activeProfileId || Object.keys(profiles).length <= 1) { alert('You need at least one profile.'); return; }
+    if (!confirm('Delete this profile?')) return;
+    delete profiles[activeProfileId];
+    activeProfileId = Object.keys(profiles)[0] || null;
+    chrome.storage.sync.set({ rsProfiles: profiles, rsActiveProfile: activeProfileId }); chrome.storage.local.set({ ranksniperProfile: activeProfileId ? profiles[activeProfileId] : null });
+    renderProfileSelector();
+  });
+
+  document.getElementById('save-profile').addEventListener('click', () => {
+    const profile = {
+      profileName: document.getElementById('profileName').value.trim() || document.getElementById('businessName').value.trim() || 'My Profile',
+      businessName: document.getElementById('businessName').value.trim(),
+      city: document.getElementById('city').value.trim(),
+      businessType: document.getElementById('businessType').value,
+      keywords: document.getElementById('keywords').value.trim(),
+      services: document.getElementById('keywords').value.trim(), // keep backward compat
+      tone: document.getElementById('tone').value,
+      customInstructions: document.getElementById('customInstructions').value.trim(),
+    };
+    if (!activeProfileId) activeProfileId = 'profile_' + Date.now();
+    profiles[activeProfileId] = profile;
+    const saveBtn = document.getElementById('save-profile');
+    saveBtn.textContent = 'Saving...';
+    saveBtn.disabled = true;
+    chrome.storage.sync.set({ rsProfiles: profiles, rsActiveProfile: activeProfileId }, () => { chrome.storage.local.set({ ranksniperProfile: profile });
+      if (chrome.runtime.lastError) { saveBtn.textContent = 'Error'; saveBtn.disabled = false; return; }
+      saveBtn.textContent = 'Saved!';
+      renderProfileSelector();
+      setTimeout(() => { saveBtn.textContent = 'Save Profile'; saveBtn.disabled = false; }, 2000);
+    });
+  });
+
+  function loadHistory() {
+    chrome.storage.local.get(['rsHistory'], result => {
+      const history = result.rsHistory || [];
+      const list = document.getElementById('history-list');
+      if (history.length === 0) { list.innerHTML = '<div class="history-empty">No responses yet. Generate your first AI response!</div>'; return; }
+      const stars = r => r <= 1 ? '1 star' : r <= 2 ? '2 stars' : r <= 3 ? '3 stars' : r <= 4 ? '4 stars' : '5 stars';
+      list.innerHTML = history.map(h => `
+        <div class="history-item">
+          <div class="history-meta">
+            <span class="history-name">${h.reviewerName} - ${h.business}</span>
+            <span class="history-date">${h.date}</span>
+          </div>
+          <div class="history-rating">${stars(h.rating)} | "${h.reviewText}..."</div>
+          <div class="history-response" onclick="navigator.clipboard.writeText(this.dataset.text);this.style.color='#22c55e';setTimeout(()=>this.style.color='',1500)" data-text="${h.response.replace(/"/g, '&quot;')}" title="Click to copy">${h.response}</div>
         </div>
-        <div class="status-row">
-          <div class="status-dot"></div>
-          <div class="status-text">Active on <strong>business.google.com</strong></div>
-        </div>
-        <div class="usage-row">
-          <span>Responses used</span>
-          <span id="usage-text">0 / Unlimited this month</span>
-        </div>
-        <div class="usage-bar"><div class="usage-fill" id="usage-fill" style="width:100%"></div></div>
-      </div>
+      `).join('');
+    });
+  }
 
-      <div class="section">
-        <div class="section-title">Business Profile</div>
-
-        <div class="profile-selector">
-          <select id="profile-select"></select>
-          <button class="btn-small" id="btn-new-profile">+ New</button>
-          <button class="btn-small danger" id="btn-delete-profile">Delete</button>
-        </div>
-
-        <div class="form-group">
-          <label>Profile Name</label>
-          <input type="text" id="profileName" placeholder="e.g. Main Location">
-        </div>
-        <div class="form-group">
-          <label>Business Name</label>
-          <input type="text" id="businessName" placeholder="e.g. John's Pizza">
-        </div>
-        <div class="form-group">
-          <label>City</label>
-          <input type="text" id="city" placeholder="e.g. Chicago">
-        </div>
-        <div class="form-group">
-          <label>Business Type</label>
-          <select id="businessType">
-            <option value="">Select type...</option>
-            <option value="restaurant">Restaurant</option>
-            <option value="barber shop">Barber Shop</option>
-            <option value="hair salon">Hair Salon</option>
-            <option value="nail salon">Nail Salon</option>
-            <option value="auto shop">Auto Shop</option>
-            <option value="dental office">Dental Office</option>
-            <option value="gym">Gym / Fitness</option>
-            <option value="spa">Spa / Massage</option>
-            <option value="retail store">Retail Store</option>
-            <option value="real estate">Real Estate</option>
-            <option value="law firm">Law Firm</option>
-            <option value="medical office">Medical Office</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>SEO Keywords</label>
-          <input type="text" id="keywords" placeholder="Select a business type to auto-generate">
-          <div class="form-hint">Used in AI responses to boost local SEO. Edit freely.</div>
-          <div class="keyword-chips-label" id="chips-label" style="display:none;">+ Add suggested keywords:</div>
-          <div class="keyword-suggestions" id="keyword-suggestions"></div>
-        </div>
-        <div class="form-group">
-          <label>Response Tone</label>
-          <select id="tone">
-            <option value="friendly">Friendly & Warm</option>
-            <option value="professional">Professional</option>
-            <option value="casual">Casual & Fun</option>
-            <option value="formal">Formal</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Custom Instructions</label>
-          <textarea id="customInstructions" rows="3" placeholder="e.g. Always mention our loyalty program. Never offer refunds."></textarea>
-          <div class="form-hint">These instructions are added to every AI response.</div>
-        </div>
-        <button class="save-btn" id="save-profile">Save Profile</button>
-      </div>
-
-      <div class="upgrade-section" id="upgrade-section" style="display:none;">
-        <div class="upgrade-card">
-          <div class="upgrade-title">Upgrade to Pro</div>
-          <div class="upgrade-sub">Unlimited responses + priority support</div>
-          <a href="https://getranksniper.com/#pricing" target="_blank" class="upgrade-btn">Go Pro — $29/month</a>
-        </div>
-      </div>
-    </div>
-
-    <div class="tab-content" id="tab-history">
-      <div class="history-list" id="history-list">
-        <div class="history-empty">No responses yet. Generate your first AI response!</div>
-      </div>
-      <button class="history-clear" id="clear-history">Clear History</button>
-    </div>
-
-    <div class="tab-content" id="tab-howto">
-      <div class="section">
-        <div class="section-title">How It Works</div>
-        <div class="step"><div class="step-num">1</div><div class="step-text">Go to <strong>business.google.com/reviews</strong> and open your reviews</div></div>
-        <div class="step"><div class="step-num">2</div><div class="step-text">Click <strong>Draft AI Response</strong> next to any review</div></div>
-        <div class="step"><div class="step-num">3</div><div class="step-text">Review the response, refine it using the chat box if needed</div></div>
-        <div class="step"><div class="step-num">4</div><div class="step-text">Click <strong>Copy</strong>, then click Reply on Google and paste with <strong>Ctrl+V</strong></div></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="footer">
-    <span>RankSniper v1.5</span>
-    <a href="https://getranksniper.com" target="_blank">getranksniper.com</a>
-  </div>
-
-  <script src="popup.js"></script>
-</body>
-</html>
+  document.getElementById('clear-history').addEventListener('click', () => {
+    if (!confirm('Clear all response history?')) return;
+    chrome.storage.local.set({ rsHistory: [] }, () => loadHistory());
+  });
+});
