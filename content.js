@@ -131,40 +131,9 @@
       if (lower.includes(cityFirst)) found.push(profile.city.split(',')[0].trim());
     }
     if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) found.push(profile.businessName);
-    // Check saved keywords
     const keywordSources = [profile?.services, profile?.keywords].filter(Boolean).join(',');
-    for (const s of keywordSources.split(',').map(x => x.trim().replace(/\[City\]/gi, profile?.city?.split(',')?.[0]?.trim() || ''))) {
+    for (const s of keywordSources.split(',').map(x => x.trim())) {
       if (s && lower.includes(s.toLowerCase()) && !found.includes(s)) found.push(s);
-    }
-    // Also detect common SEO terms found in the response
-    const commonTerms = [
-      // Nail salon
-      'gel manicure', 'acrylic nails', 'nail salon', 'nail art', 'pedicure', 'dip powder', 'nail extensions', 'sns nails', 'luxury pedicure',
-      // Spa / massage
-      'deep tissue massage', 'couples massage', 'hot stone massage', 'swedish massage', 'massage therapy', 'prenatal massage', 'relaxation massage', 'day spa', 'facial',
-      // Dental
-      'teeth whitening', 'dental implants', 'teeth cleaning', 'family dentist', 'cosmetic dentist', 'emergency dentist', 'invisalign', 'dental crowns',
-      // Auto shop
-      'oil change', 'brake repair', 'auto repair', 'tire rotation', 'transmission repair', 'car inspection', 'engine repair', 'ac repair', 'check engine',
-      // Gym
-      'personal trainer', 'fitness classes', 'weight loss', 'strength training', 'yoga classes', 'gym membership', 'workout classes', 'bodybuilding',
-      // Hair salon
-      'hair salon', 'balayage', 'keratin treatment', 'hair extensions', 'highlights', 'color correction', 'bridal hair', 'haircut and blowout',
-      // Barber
-      'beard trim', 'hot towel shave', 'skin fade', 'hair fade', 'lineup', 'edge up', 'kids haircut',
-      // Restaurant
-      'fresh ingredients', 'online ordering', 'family restaurant', 'casual dining', 'takeout', 'delivery', 'dine in', 'lunch specials', 'happy hour', 'outdoor seating',
-      // Retail
-      'locally owned', 'small business', 'unique gifts', 'same day pickup', 'gift shop', 'boutique', 'shop local',
-      // Real estate
-      'homes for sale', 'real estate agent', 'first time homebuyer', 'home valuation', 'luxury homes', 'investment properties', 'top realtor',
-      // Law firm
-      'personal injury', 'free consultation', 'family lawyer', 'criminal defense', 'estate planning', 'immigration lawyer', 'divorce lawyer',
-      // Medical
-      'primary care', 'urgent care', 'family doctor', 'same day appointment', 'accepting new patients', 'telehealth', 'walk in clinic'
-    ];
-    for (const term of commonTerms) {
-      if (lower.includes(term) && !found.includes(term)) found.push(term);
     }
     return found;
   }
@@ -213,10 +182,10 @@
       prompt = 'You wrote this response to a Google review for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants you to change it: "' + instruction + '"\n\nRewrite the response keeping it natural and human. Start with "Hi ' + firstName + '," on its own line. Under 120 words. Never use dashes, hyphens, or em dashes anywhere. Write like a real business owner, not a corporate email. Keep it short and genuine.' + custom + '\n\nWrite only the new response, nothing else.';
     } else {
       const g = reviewData.rating <= 2 ? 'Negative review: apologize sincerely and explain improvements.' : reviewData.rating === 3 ? 'Mixed review: thank them and acknowledge issues.' : 'Positive review: thank them warmly.';
-      // Build keyword prompt — only use keywords that fit naturally
-      const kwList = keywords ? keywords.split(',').map(k => k.trim().replace(/\[City\]/gi, city)).filter(Boolean) : [];
+      // Build keyword prompt — pick 3-5 keywords to weave in naturally
+      const kwList = keywords ? keywords.split(',').map(k => k.trim()).filter(Boolean) : [];
       const kwPrompt = kwList.length > 0
-        ? ' If it fits naturally in the conversation, mention 1 or 2 of these: ' + kwList.slice(0, 6).join(', ') + '. Never force them or list multiple at the end of the response. Only use if they flow naturally.'
+        ? ' Naturally weave in 3 to 5 of these SEO keywords where they fit organically in the response (replace [City] with ' + city + '): ' + kwList.slice(0, 8).join(', ') + '. Do not force them — only use ones that fit naturally.'
         : '';
       prompt = 'Respond to this Google review for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + '," on its own line. ' + g + ' Naturally mention the business name and city once each.' + kwPrompt + ' Under 120 words. Write like a real business owner texting a customer. Use short sentences. Never use dashes, hyphens, em dashes, or any kind of dash anywhere in the response. Never use corporate phrases like "we are thrilled", "it means a lot", "reviews like yours", "we pride ourselves", or "we strive". Never stuff keywords unnaturally. Sound warm and genuine.' + custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response, nothing else.';
     }
