@@ -69,7 +69,7 @@
   }
 
   function scoreResponse(text, profile) {
-    let score = 40;
+    let score = 62;
     const lower = text.toLowerCase();
     const words = text.split(/\s+/).length;
 
@@ -77,33 +77,33 @@
     if (words >= 60 && words <= 120) score += 12;
     else if (words >= 40 && words < 60) score += 6;
     else if (words > 120 && words <= 160) score += 4;
-    else if (words < 40) score -= 5;
+    else if (words < 40) score -= 8;
 
     // Greeting
     if (lower.startsWith('hi ') && !lower.startsWith('hi there')) score += 6;
     else if (lower.startsWith('hi there')) score += 2;
 
     // City mentioned
-    if (profile?.city && lower.includes(profile.city.split(',')[0].trim().toLowerCase())) score += 8;
+    if (profile?.city && lower.includes(profile.city.split(',')[0].trim().toLowerCase())) score += 7;
 
     // Business name mentioned
-    if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 8;
+    if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 7;
 
     // CTA
     const hasCTA = lower.includes('come back') || lower.includes('visit us') || lower.includes('see you') ||
       lower.includes('give us another') || lower.includes('contact us') || lower.includes('stop by') ||
       lower.includes('welcome you back') || lower.includes('hope to see') || lower.includes('love to have you');
-    if (hasCTA) score += 6;
+    if (hasCTA) score += 5;
 
     // No dashes
-    if (!text.includes('—') && !text.includes(' - ')) score += 4;
+    if (!text.includes('—') && !text.includes(' - ')) score += 3;
 
-    // SEO keywords bonus — up to 8 points (2 per keyword, max 4 keywords)
+    // SEO keywords bonus — up to 6 points
     const kwSources = [profile?.keywords, profile?.services].filter(Boolean).join(',');
     if (kwSources) {
       const kwList = kwSources.split(',').map(k => k.trim().replace(/\[City\]/gi, '').trim().toLowerCase()).filter(Boolean);
       const kwFound = kwList.filter(k => k && lower.includes(k)).length;
-      score += Math.min(kwFound * 2, 8);
+      score += Math.min(kwFound * 2, 6);
     }
 
     // Penalties for AI fluff
@@ -113,7 +113,7 @@
       'thrilled', 'delighted', 'means the world', 'thank you for sharing', 'thank you for taking the time',
       'we pride ourselves', 'it means a lot', 'reviews like yours'];
     const genericCount = genericPhrases.filter(p => lower.includes(p)).length;
-    score -= genericCount * 6;
+    score -= genericCount * 5;
 
     // Missing greeting
     if (!lower.includes('hi') && !lower.includes('thank')) score -= 8;
@@ -179,7 +179,7 @@
       prompt = 'You wrote this response to a Google review for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants you to change it: "' + instruction + '"\n\nRewrite the response keeping it natural and human. Start with "Hi ' + firstName + ',". Under 150 words. Never use em dashes, hyphens, or any kind of dash. Never use the word thrilled, delighted, or excited. Include city (' + city + ') and business name (' + biz + ') naturally.' + custom + '\n\nWrite only the new response, nothing else.';
     } else {
       const g = reviewData.rating <= 2 ? 'Negative review: apologize sincerely and explain improvements.' : reviewData.rating === 3 ? 'Mixed review: thank them and acknowledge issues.' : 'Positive review: thank them warmly.';
-      const kwPrompt = keywords ? ' Naturally include some of these SEO keywords where they fit: ' + keywords + '.' : '';
+      const kwPrompt = keywords ? ' If it fits naturally, mention just 1 or 2 of these keywords in the response (do not list them all, do not force them): ' + keywords + '. Only use a keyword if a real person would naturally say it in that context.' : '';
       prompt = 'Respond to this Google review for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + ',". ' + g + ' Include city and business name.' + kwPrompt + ' Under 150 words. Write like a real business owner, not a marketing person. Never use em dashes, hyphens, or any kind of dash. Never use the words thrilled, delighted, excited, wonderful, amazing, fantastic, appreciate, valued, cherished, or means the world. Never start with "Thank you for sharing" or "Thank you for taking the time". Never say "we hope to see you" or "we look forward". Never use corporate filler. Keep it short, warm, and real.' + custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response.';
     }
 
