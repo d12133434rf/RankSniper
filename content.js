@@ -69,35 +69,55 @@
   }
 
   function scoreResponse(text, profile) {
-    let score = 60;
+    let score = 50;
     const lower = text.toLowerCase();
     const words = text.split(/\s+/).length;
 
-    if (words >= 60 && words <= 120) score += 15;
-    else if (words >= 40 && words < 60) score += 8;
-    else if (words > 120 && words <= 160) score += 8;
-    else if (words < 40) score += 0;
-    else score += 2;
+    // Length scoring — ideal is 60-120 words
+    if (words >= 60 && words <= 120) score += 12;
+    else if (words >= 40 && words < 60) score += 7;
+    else if (words > 120 && words <= 150) score += 6;
+    else if (words < 40) score -= 5;
 
+    // Starts with Hi [Name]
     if (lower.startsWith('hi ') && !lower.startsWith('hi there')) score += 8;
-    else if (lower.startsWith('hi there')) score += 3;
+    else if (lower.startsWith('hi there')) score += 2;
 
-    if (profile?.city && lower.includes(profile.city.toLowerCase())) score += 6;
-    if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 6;
+    // City mentioned
+    if (profile?.city) {
+      const cityFirst = profile.city.split(',')[0].trim().toLowerCase();
+      if (lower.includes(cityFirst)) score += 8;
+    }
 
+    // Business name mentioned
+    if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 8;
+
+    // SEO keywords used — up to 10 points for using keywords
+    const kwSources = [profile?.keywords, profile?.services].filter(Boolean).join(',');
+    const kwList = kwSources.split(',').map(k => k.trim().replace(/\[City\]/gi, '').trim().toLowerCase()).filter(Boolean);
+    const kwFound = kwList.filter(k => k && lower.includes(k)).length;
+    score += Math.min(kwFound * 3, 10);
+
+    // Has a call to action
     const hasCTA = lower.includes('come back') || lower.includes('visit us') || lower.includes('see you') ||
       lower.includes('give us another') || lower.includes('contact us') || lower.includes('stop by') ||
-      lower.includes('welcome you back') || lower.includes('hope to see') || lower.includes('love to have you');
+      lower.includes('welcome you back') || lower.includes('hope to see') || lower.includes('love to have you') ||
+      lower.includes('look forward') || lower.includes('see you soon') || lower.includes('next time');
     if (hasCTA) score += 8;
 
-    if (!text.includes('—')) score += 3;
+    // No dashes
+    if (!text.includes('—') && !text.includes(' - ')) score += 4;
 
+    // Generic AI phrases penalty
     const genericPhrases = ['we strive to', 'we apologize for any inconvenience', 'at your earliest convenience',
       'do not hesitate', 'please do not hesitate', 'we are committed to', 'it is our goal',
-      'we take pride', 'rest assured', 'we value your feedback', 'thank you for bringing this to our attention'];
+      'rest assured', 'we value your feedback', 'thank you for bringing this to our attention',
+      'we pride ourselves', 'it means a lot', 'reviews like yours', 'we are thrilled',
+      'we are delighted', 'we are so pleased'];
     const genericCount = genericPhrases.filter(p => lower.includes(p)).length;
     score -= genericCount * 8;
 
+    // Missing greeting penalty
     if (!lower.includes('hi') && !lower.includes('thank')) score -= 10;
 
     return Math.min(Math.max(Math.round(score), 0), 100);
