@@ -355,6 +355,37 @@
     setTimeout(() => n.remove(), 4000);
   }
 
+  function injectReplyPanelButton() {
+    // Inject into the slide-in "Reply to review" panel on Google Search
+    const replyBtn = document.querySelector('[jsname="hrGhad"]');
+    if (!replyBtn) return;
+    const container = replyBtn.closest('.FkJOzc');
+    if (!container || container.querySelector('.ranksniper-btn')) return;
+
+    // Get review text from the panel
+    const article = document.querySelector('article[aria-label="Review"]');
+    const reviewText = article ? article.innerText.trim() : '';
+    const reviewerEl = document.querySelector('.hJNnEe, .Uqj3Wb, [data-review-id] .d4r55');
+    const reviewerName = reviewerEl ? reviewerEl.innerText.trim().split('\n')[0] : 'Customer';
+    const starsEl = document.querySelector('[aria-label*="out of 5"]');
+    const rating = starsEl ? parseFloat(starsEl.getAttribute('aria-label').match(/[\d.]+/)?.[0] || '5') : 5;
+
+    const reviewData = { reviewerName, rating, reviewText };
+
+    const btn = document.createElement('button');
+    btn.className = 'ranksniper-btn';
+    btn.textContent = 'Draft AI Response';
+    btn.style.cssText = 'margin-right:8px;';
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const panel = container.closest('section, .X73iid') || document.body;
+      await handleDraftClick(btn, reviewData, panel);
+    });
+
+    container.insertBefore(btn, replyBtn);
+  }
+
   function injectButtons() {
     const url = window.location.href;
     const isSearch = url.includes('google.com/search');
@@ -393,6 +424,7 @@
     clearTimeout(t);
     t = setTimeout(() => {
       injectButtons();
+      injectReplyPanelButton();
       const cancelBtn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Cancel');
       const btn = document.querySelector('.ranksniper-btn');
       if (cancelBtn && btn && btn.parentElement !== cancelBtn.parentElement) {
