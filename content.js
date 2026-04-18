@@ -402,12 +402,12 @@
       btn.textContent = 'Draft AI Response';
       btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, card); });
       if (isSearch) {
-        const replyBtn = card.querySelector('[jsname="F87tLd"]') || card.querySelector('.F87tLd');
-        if (replyBtn && replyBtn.parentElement) {
-          replyBtn.parentElement.insertBefore(btn, replyBtn.nextSibling);
+        const replyBtn = card.querySelector('.F87tLd');
+        if (replyBtn) {
+          replyBtn.insertAdjacentElement('afterend', btn);
         } else {
           const actionRow = card.querySelector('.dwrWYe');
-          if (actionRow) actionRow.insertBefore(btn, actionRow.firstChild);
+          if (actionRow) actionRow.appendChild(btn);
           else card.appendChild(btn);
         }
       } else {
