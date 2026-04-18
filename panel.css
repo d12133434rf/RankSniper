@@ -9,8 +9,8 @@
   color: #fff !important;
   border: none !important;
   border-radius: 4px !important;
-  padding: 6px 14px !important;
-  font-size: 13px !important;
+  padding: 6px 12px !important;
+  font-size: 12px !important;
   font-weight: 600 !important;
   cursor: pointer !important;
   margin-left: 8px !important;
@@ -19,6 +19,8 @@
   vertical-align: middle !important;
   position: static !important;
   float: none !important;
+  white-space: nowrap !important;
+  line-height: 1.4 !important;
 }
 
 .ranksniper-btn:hover {
