@@ -69,44 +69,54 @@
   }
 
   function scoreResponse(text, profile) {
-    let score = 60;
+    let score = 40;
     const lower = text.toLowerCase();
     const words = text.split(/\s+/).length;
 
-    if (words >= 60 && words <= 120) score += 15;
-    else if (words >= 40 && words < 60) score += 8;
-    else if (words > 120 && words <= 160) score += 8;
-    else if (words < 40) score += 0;
-    else score += 2;
+    // Length: ideal 60-120 words
+    if (words >= 60 && words <= 120) score += 12;
+    else if (words >= 40 && words < 60) score += 6;
+    else if (words > 120 && words <= 160) score += 4;
+    else if (words < 40) score -= 5;
 
-    if (lower.startsWith('hi ') && !lower.startsWith('hi there')) score += 8;
-    else if (lower.startsWith('hi there')) score += 3;
+    // Greeting
+    if (lower.startsWith('hi ') && !lower.startsWith('hi there')) score += 6;
+    else if (lower.startsWith('hi there')) score += 2;
 
-    if (profile?.city && lower.includes(profile.city.toLowerCase())) score += 6;
-    if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 6;
+    // City mentioned
+    if (profile?.city && lower.includes(profile.city.split(',')[0].trim().toLowerCase())) score += 8;
 
+    // Business name mentioned
+    if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 8;
+
+    // CTA
     const hasCTA = lower.includes('come back') || lower.includes('visit us') || lower.includes('see you') ||
       lower.includes('give us another') || lower.includes('contact us') || lower.includes('stop by') ||
       lower.includes('welcome you back') || lower.includes('hope to see') || lower.includes('love to have you');
-    if (hasCTA) score += 8;
+    if (hasCTA) score += 6;
 
-    if (!text.includes('—')) score += 3;
+    // No dashes
+    if (!text.includes('—') && !text.includes(' - ')) score += 4;
 
-    const genericPhrases = ['we strive to', 'we apologize for any inconvenience', 'at your earliest convenience',
-      'do not hesitate', 'please do not hesitate', 'we are committed to', 'it is our goal',
-      'we take pride', 'rest assured', 'we value your feedback', 'thank you for bringing this to our attention'];
-    const genericCount = genericPhrases.filter(p => lower.includes(p)).length;
-    score -= genericCount * 8;
-
-    if (!lower.includes('hi') && !lower.includes('thank')) score -= 10;
-
-    // SEO keywords bonus — up to 10 points
+    // SEO keywords bonus — up to 8 points (2 per keyword, max 4 keywords)
     const kwSources = [profile?.keywords, profile?.services].filter(Boolean).join(',');
     if (kwSources) {
       const kwList = kwSources.split(',').map(k => k.trim().replace(/\[City\]/gi, '').trim().toLowerCase()).filter(Boolean);
       const kwFound = kwList.filter(k => k && lower.includes(k)).length;
-      score += Math.min(kwFound * 3, 10);
+      score += Math.min(kwFound * 2, 8);
     }
+
+    // Penalties for AI fluff
+    const genericPhrases = ['we strive to', 'we apologize for any inconvenience', 'at your earliest convenience',
+      'do not hesitate', 'please do not hesitate', 'we are committed to', 'it is our goal',
+      'we take pride', 'rest assured', 'we value your feedback', 'thank you for bringing this to our attention',
+      'thrilled', 'delighted', 'means the world', 'thank you for sharing', 'thank you for taking the time',
+      'we pride ourselves', 'it means a lot', 'reviews like yours'];
+    const genericCount = genericPhrases.filter(p => lower.includes(p)).length;
+    score -= genericCount * 6;
+
+    // Missing greeting
+    if (!lower.includes('hi') && !lower.includes('thank')) score -= 8;
 
     return Math.min(Math.max(Math.round(score), 0), 100);
   }
@@ -176,7 +186,16 @@
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 200, temperature: 0.7 } }) });
     if (!res.ok) { const err = await res.json(); throw new Error(err?.error?.message || 'Gemini API error'); }
     const data = await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Could not generate response.';
+    let output = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Could not generate response.';
+    // Strip AI fluff words that Gemini still uses despite instructions
+    output = output.replace(/\bthrilled\b/gi, 'happy');
+    output = output.replace(/\bdelighted\b/gi, 'glad');
+    output = output.replace(/\bwonderful\b/gi, 'great');
+    output = output.replace(/\bfantastic\b/gi, 'great');
+    output = output.replace(/\bamazing\b/gi, 'great');
+    output = output.replace(/ - /g, ' ');
+    output = output.replace(/—/g, '');
+    return output;
   }
 
   async function handleDraftClick(btn, reviewData, card) {
