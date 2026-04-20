@@ -170,7 +170,7 @@
     const type = p.businessType || 'local business';
     const tone = p.tone || 'friendly';
     const rawFirst = reviewData.reviewerName.split(' ')[0];
-    const firstName = rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase();
+    const firstName = rawFirst.length === 1 ? 'there' : rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase();
     const custom = p.customInstructions ? '\nAdditional instructions: ' + p.customInstructions : '';
     const keywords = p.keywords || p.services || '';
 
