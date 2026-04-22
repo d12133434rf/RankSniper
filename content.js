@@ -406,37 +406,49 @@
 
   function injectButtons() {
     const url = window.location.href;
+    const isIframe = url.includes('/customers/reviews') || url.includes('knm=0');
     const isSearch = url.includes('google.com/search');
     const isBusiness = url.includes('business.google.com');
 
-    if (isSearch) {
-      injectReplyToReviewsButton();
-
-      // Also try KuKPRc cards in case they exist on the page
+    if (isIframe || isSearch) {
+      // Try KuKPRc cards (exist in iframe and sometimes on search page)
       const cards = [...document.querySelectorAll('div.KuKPRc')];
       console.log('[RankSniper] Found', cards.length, 'review cards (KuKPRc)');
+
       cards.forEach((card) => {
         if (card.querySelector('.ranksniper-btn')) return;
         const reviewData = extractReviewDataFromCard(card);
         if (!reviewData.reviewText) return;
+        console.log('[RankSniper] Injecting for:', reviewData.reviewerName, '★', reviewData.rating);
+
         const btn = document.createElement('button');
         btn.className = 'ranksniper-btn';
-        btn.textContent = 'Draft AI Response';
+        btn.textContent = '⚡ Draft AI Response';
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
           e.preventDefault();
           await handleDraftClick(btn, reviewData, card);
         });
+
+        // In the iframe the Reply link is inside .FkJOzc — inject right before it
+        const replyLink = card.querySelector('a[jsname], .F87tLd, [data-reply]');
         const actionRow = card.querySelector('.FkJOzc');
-        if (actionRow) {
+        if (replyLink) {
+          replyLink.insertAdjacentElement('beforebegin', btn);
+        } else if (actionRow) {
           actionRow.style.display = 'flex';
           actionRow.style.alignItems = 'center';
           actionRow.style.gap = '8px';
-          actionRow.appendChild(btn);
+          actionRow.prepend(btn);
         } else {
           card.appendChild(btn);
         }
       });
+
+      // Also try the search page "Reply to reviews" button as fallback
+      if (isSearch) injectReplyToReviewsButton();
+
+    } else if (isBusiness) {
 
     } else if (isBusiness) {
       const reviews = getReviewsFromPageData();
@@ -468,10 +480,12 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.6 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
-    setTimeout(injectButtons, 2000);
-    setTimeout(injectButtons, 4000);
-    setTimeout(injectButtons, 7000); // extra attempt for slow-loading review panels
+    const url = window.location.href;
+    const isIframe = url.includes('/customers/reviews') || url.includes('knm=0');
+    console.log('[RankSniper] v1.7 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan, '| iframe:', isIframe);
+    setTimeout(injectButtons, 1000);
+    setTimeout(injectButtons, 2500);
+    setTimeout(injectButtons, 5000);
   }
 
   document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
