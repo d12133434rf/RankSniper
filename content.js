@@ -391,79 +391,56 @@
 
     // ── google.com/search ────────────────────────────────────────────────────────
     if (isSearch) {
-      // Entry point 1: "1 Google review" link (jsaction="DdQmte") — inject button next to it
+
+      // Helper: grab review data from page at click-time (not inject-time)
+      function getSearchReviewData() {
+        // All Fv38Af elements on page — grab first non-empty one
+        const allText = [...document.querySelectorAll('div.Fv38Af')];
+        const reviewText = allText.map(el => el.innerText.trim()).find(t => t.length > 5) || '';
+        // Stars: any star aria-label on the page
+        const starsEl = document.querySelector('span[role="img"][aria-label*="out of"], span[aria-label*="out of 5"]');
+        const rating = starsEl ? parseFloat(starsEl.getAttribute('aria-label').match(/[\d.]+/)?.[0] || '5') : 5;
+        // Name: look for reviewer link
+        const nameEl = document.querySelector('a.PskQHd');
+        const reviewerName = nameEl ? nameEl.innerText.trim() : 'Customer';
+        console.log('[RankSniper] Review data at click-time:', { reviewerName, rating, reviewText: reviewText.substring(0, 60) });
+        return { reviewerName, rating, reviewText };
+      }
+
+      async function handleSearchBtn(btn, anchor) {
+        await loadProfile();
+        if (!isLoggedIn) { showNotice('Please log in via the RankSniper popup.', 'error'); return; }
+        if (userPlan !== 'pro') { showNotice('Active subscription required. Visit getranksniper.com to subscribe.', 'error'); return; }
+        const reviewData = getSearchReviewData();
+        if (!reviewData.reviewText) { showNotice('Could not find review text. Scroll down so the review card is visible, then try again.', 'error'); return; }
+        btn.disabled = true; btn.textContent = 'Generating...';
+        try {
+          const responseText = await callGemini(reviewData, null, null);
+          showPanel(anchor, responseText, reviewData);
+        } catch (err) { showNotice('Error: ' + err.message, 'error'); }
+        finally { btn.disabled = false; btn.textContent = 'Draft AI Response'; }
+      }
+
+      // Entry point 1: "1 Google review" link (jsaction="DdQmte")
       const reviewCountLink = document.querySelector('a[jsaction="DdQmte"]');
       if (reviewCountLink && !document.querySelector('.ranksniper-search-btn')) {
         const btn = document.createElement('button');
         btn.className = 'ranksniper-btn ranksniper-search-btn';
         btn.textContent = 'Draft AI Response';
         btn.style.marginLeft = '8px';
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          await loadProfile();
-          if (!isLoggedIn) { showNotice('Please log in via the RankSniper popup.', 'error'); return; }
-          if (userPlan !== 'pro') { showNotice('Active subscription required. Visit getranksniper.com to subscribe.', 'error'); return; }
-          // Grab review data from visible KuKPRc cards or Fv38Af text
-          let reviewData = null;
-          const cards = [...document.querySelectorAll('div.KuKPRc')];
-          if (cards.length > 0) reviewData = extractReviewDataFromCard(cards[0]);
-          if (!reviewData || !reviewData.reviewText) {
-            const textEl = document.querySelector('div.Fv38Af');
-            const starsEl = document.querySelector('span[role="img"][aria-label*="out of"]');
-            const nameEl = document.querySelector('a.PskQHd');
-            reviewData = {
-              reviewerName: nameEl ? nameEl.innerText.trim() : 'Customer',
-              rating: starsEl ? parseFloat(starsEl.getAttribute('aria-label').match(/[\d.]+/)?.[0] || '5') : 5,
-              reviewText: textEl ? textEl.innerText.trim() : ''
-            };
-          }
-          if (!reviewData.reviewText) { showNotice('Could not find review text on this page.', 'error'); return; }
-          btn.disabled = true; btn.textContent = 'Generating...';
-          try {
-            const responseText = await callGemini(reviewData, null, null);
-            showPanel(reviewCountLink.parentElement || document.body, responseText, reviewData);
-          } catch (err) { showNotice('Error: ' + err.message, 'error'); }
-          finally { btn.disabled = false; btn.textContent = 'Draft AI Response'; }
-        });
+        btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleSearchBtn(btn, reviewCountLink.parentElement || document.body); });
         reviewCountLink.insertAdjacentElement('afterend', btn);
         console.log('[RankSniper] Injected next to "1 Google review" link');
       }
 
-      // Entry point 2: "Read reviews" button (jsname="Q4Dse") — inject button next to it
+      // Entry point 2: "Read reviews" button (jsname="Q4Dse")
       const readReviewsBtn = document.querySelector('button[jsname="Q4Dse"]');
       if (readReviewsBtn && !readReviewsBtn.nextElementSibling?.classList.contains('ranksniper-rr-btn')) {
         const btn = document.createElement('button');
         btn.className = 'ranksniper-btn ranksniper-rr-btn';
         btn.textContent = 'Draft AI Response';
         btn.style.marginLeft = '8px';
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          await loadProfile();
-          if (!isLoggedIn) { showNotice('Please log in via the RankSniper popup.', 'error'); return; }
-          if (userPlan !== 'pro') { showNotice('Active subscription required. Visit getranksniper.com to subscribe.', 'error'); return; }
-          let reviewData = null;
-          const cards = [...document.querySelectorAll('div.KuKPRc')];
-          if (cards.length > 0) reviewData = extractReviewDataFromCard(cards[0]);
-          if (!reviewData || !reviewData.reviewText) {
-            const textEl = document.querySelector('div.Fv38Af');
-            const starsEl = document.querySelector('span[role="img"][aria-label*="out of"]');
-            const nameEl = document.querySelector('a.PskQHd');
-            reviewData = {
-              reviewerName: nameEl ? nameEl.innerText.trim() : 'Customer',
-              rating: starsEl ? parseFloat(starsEl.getAttribute('aria-label').match(/[\d.]+/)?.[0] || '5') : 5,
-              reviewText: textEl ? textEl.innerText.trim() : ''
-            };
-          }
-          if (!reviewData.reviewText) { showNotice('Could not find review text on this page.', 'error'); return; }
-          btn.disabled = true; btn.textContent = 'Generating...';
-          try {
-            const responseText = await callGemini(reviewData, null, null);
-            showPanel(readReviewsBtn.parentElement || document.body, responseText, reviewData);
-          } catch (err) { showNotice('Error: ' + err.message, 'error'); }
-          finally { btn.disabled = false; btn.textContent = 'Draft AI Response'; }
-        });
+        btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleSearchBtn(btn, readReviewsBtn.parentElement || document.body); });
         readReviewsBtn.insertAdjacentElement('afterend', btn);
         console.log('[RankSniper] Injected next to "Read reviews" button');
       }
@@ -478,11 +455,7 @@
         const btn = document.createElement('button');
         btn.className = 'ranksniper-btn';
         btn.textContent = 'Draft AI Response';
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          await handleDraftClick(btn, reviewData, card);
-        });
+        btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, card); });
         const actionRow = card.querySelector('.FkJOzc');
         if (actionRow) {
           actionRow.style.display = 'flex';
