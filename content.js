@@ -333,23 +333,55 @@
     const isBusiness = url.includes('business.google.com');
     const isSearch = url.includes('google.com/search');
 
-    // ── business.google.com ──────────────────────────────────────────────────────
+    // ── business.google.com/reviews ─────────────────────────────────────────────
     if (isBusiness) {
-      const reviews = getReviewsFromPageData();
-      const cards = [...document.querySelectorAll('div.OUCuxb')];
-      console.log('[RankSniper] business.google.com — found', cards.length, 'cards,', reviews.length, 'reviews');
-      cards.forEach((card, i) => {
+      // Cancel button (jsname="gQ2Xie") appears when reply box is open — inject next to it
+      const cancelBtns = [...document.querySelectorAll('button[jsname="gQ2Xie"]')];
+      console.log('[RankSniper] business.google.com — found', cancelBtns.length, 'open reply boxes');
+
+      cancelBtns.forEach((cancelBtn) => {
+        if (cancelBtn.nextElementSibling?.classList.contains('ranksniper-btn')) return;
+
+        // Walk up to find review container for data extraction
+        const reviewContainer = cancelBtn.closest('li, [data-review-id], .k6DwOf, .oFvkI') || cancelBtn.parentElement?.parentElement?.parentElement;
+
+        const reviewTextEl = reviewContainer?.querySelector('.OA1nbd, .Jtu6fd, .wiI7pd, [jsname="fbQN7e"]');
+        const reviewText = reviewTextEl ? reviewTextEl.innerText.trim() : '';
+
+        const nameEl = reviewContainer?.querySelector('.TSUbDb, .d4r55, .sCuL2, [jsname="gp20Tb"]');
+        const reviewerName = nameEl ? nameEl.innerText.trim().split('\n')[0] : 'Customer';
+
+        const starsEl = reviewContainer?.querySelector('[aria-label*="out of"], [aria-label*="star"]');
+        const rating = starsEl ? parseFloat(starsEl.getAttribute('aria-label').match(/[\d.]+/)?.[0] || '5') : 5;
+
+        const reviewData = { reviewerName, rating, reviewText };
+
+        const btn = document.createElement('button');
+        btn.className = 'ranksniper-btn';
+        btn.textContent = 'Draft AI Response';
+        btn.style.marginLeft = '8px';
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          await handleDraftClick(btn, reviewData, reviewContainer || cancelBtn.parentElement);
+        });
+
+        // Place right after Cancel button (same row)
+        cancelBtn.insertAdjacentElement('afterend', btn);
+        console.log('[RankSniper] Injected next to Cancel for:', reviewerName || 'Customer');
+      });
+
+      // Fallback: old-style OUCuxb cards
+      const oldReviews = getReviewsFromPageData();
+      const oldCards = [...document.querySelectorAll('div.OUCuxb')];
+      oldCards.forEach((card, i) => {
         if (card.querySelector('.ranksniper-btn')) return;
-        const reviewData = reviews[i] || reviews[0];
+        const reviewData = oldReviews[i] || oldReviews[0];
         if (!reviewData || !reviewData.reviewText) return;
         const btn = document.createElement('button');
         btn.className = 'ranksniper-btn';
         btn.textContent = 'Draft AI Response';
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          await handleDraftClick(btn, reviewData, card);
-        });
+        btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, card); });
         const row = card.querySelector('div.lGXsGc');
         if (row) row.appendChild(btn);
         else card.appendChild(btn);
