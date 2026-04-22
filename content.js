@@ -1,4 +1,4 @@
-// RankSniper - Content Script v1.6
+// RankSniper - Content Script v1.8
 (function () {
   const BACKEND = 'https://ranksniperweb-production.up.railway.app';
   let businessProfile = null;
@@ -51,8 +51,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + rsToken },
           body: JSON.stringify({
-            reviewerName,
-            rating,
+            reviewerName, rating,
             reviewText: reviewText.substring(0, 500),
             responseText: response,
             businessName: businessProfile?.businessName || '',
@@ -81,7 +80,7 @@
       lower.includes('give us another') || lower.includes('contact us') || lower.includes('stop by') ||
       lower.includes('welcome you back') || lower.includes('hope to see') || lower.includes('love to have you');
     if (hasCTA) score += 6;
-    if (!text.includes('—') && !text.includes(' - ')) score += 3;
+    if (!text.includes('\u2014') && !text.includes(' - ')) score += 3;
     const kwSources = [profile?.keywords, profile?.services].filter(Boolean).join(',');
     if (kwSources) {
       const kwList = kwSources.split(',').map(k => k.trim().replace(/\[City\]/gi, '').trim().toLowerCase()).filter(Boolean);
@@ -129,22 +128,13 @@
     } catch (e) { return []; }
   }
 
-  // ─── UPDATED: uses confirmed DOM selectors from inspection ───────────────────
   function extractReviewDataFromCard(card) {
-    // Reviewer name: <a class="PskQHd"> inside <div class="rHQsDe">
     const nameEl = card.querySelector('a.PskQHd');
     const reviewerName = nameEl ? nameEl.innerText.trim() || 'Customer' : 'Customer';
-
-    // Stars: <span role="img" aria-label="2 out of 5 stars">
     const starsEl = card.querySelector('span[role="img"][aria-label*="out of"]');
-    const rating = starsEl
-      ? parseFloat(starsEl.getAttribute('aria-label').match(/[\d.]+/)?.[0] || '5')
-      : 5;
-
-    // Review text: <div class="Fv38Af">
+    const rating = starsEl ? parseFloat(starsEl.getAttribute('aria-label').match(/[\d.]+/)?.[0] || '5') : 5;
     const textEl = card.querySelector('div.Fv38Af');
     const reviewText = textEl ? textEl.innerText.trim() : '';
-
     return { reviewerName, rating, reviewText };
   }
 
@@ -166,7 +156,7 @@
       prompt = 'You wrote this response to a Google review for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants you to change it: "' + instruction + '"\n\nRewrite the response keeping it natural and human. Start with "Hi ' + firstName + ',". Under 150 words. Never use em dashes, hyphens, or any kind of dash. Never use the word thrilled, delighted, or excited. Include city (' + city + ') and business name (' + biz + ') naturally.' + custom + '\n\nWrite only the new response, nothing else.';
     } else {
       const g = reviewData.rating <= 2 ? 'Negative review: apologize sincerely and explain improvements.' : reviewData.rating === 3 ? 'Mixed review: thank them and acknowledge issues.' : 'Positive review: thank them warmly.';
-      const kwPrompt = keywords ? ' Naturally weave 3 to 4 of these keywords into the response where they fit — spread them out across the response, do not list them all in one sentence: ' + keywords + '. Write like a real person, not a marketer. Each keyword should feel like it belongs in the sentence.' : '';
+      const kwPrompt = keywords ? ' Naturally weave 3 to 4 of these keywords into the response where they fit - spread them out across the response, do not list them all in one sentence: ' + keywords + '. Write like a real person, not a marketer. Each keyword should feel like it belongs in the sentence.' : '';
       prompt = 'Respond to this Google review for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + ',". ' + g + ' Include city and business name.' + kwPrompt + ' Under 150 words. Write like a real business owner, not a marketing person. Never use em dashes, hyphens, or any kind of dash. Never use the words thrilled, delighted, excited, wonderful, amazing, fantastic, appreciate, valued, cherished, or means the world. Never start with "Thank you for sharing" or "Thank you for taking the time". Never say "we hope to see you" or "we look forward". Never use corporate filler. Keep it short, warm, and real.' + custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response.';
     }
 
@@ -180,7 +170,7 @@
     output = output.replace(/\bfantastic\b/gi, 'great');
     output = output.replace(/\bamazing\b/gi, 'great');
     output = output.replace(/ - /g, ' ');
-    output = output.replace(/—/g, '');
+    output = output.replace(/\u2014/g, '');
     return output;
   }
 
@@ -199,8 +189,12 @@
     try {
       const responseText = await callGemini(reviewData, null, null);
       showPanel(card, responseText, reviewData);
-    } catch (err) { showNotice('Error: ' + err.message, 'error'); }
-    finally { btn.disabled = false; btn.textContent = 'Draft AI Response'; }
+    } catch (err) {
+      showNotice('Error: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Draft AI Response';
+    }
   }
 
   function pasteIntoTextarea(text) {
@@ -334,125 +328,16 @@
     setTimeout(() => n.remove(), 4000);
   }
 
-  // ─── Inject button next to "Reply to reviews" on the main search page ────────
-  function injectReplyToReviewsButton() {
-    // "Reply to reviews" button is identified by jsname="WSkPNc"
-    const replyToReviewsBtn = document.querySelector('button[jsname="WSkPNc"]');
-    if (!replyToReviewsBtn) return;
-    if (document.querySelector('.ranksniper-open-btn')) return; // already injected
-
-    const btn = document.createElement('button');
-    btn.className = 'ranksniper-btn ranksniper-open-btn';
-    btn.textContent = '⚡ Draft AI Responses';
-    btn.title = 'Open RankSniper AI response panel';
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      await loadProfile();
-
-      if (!isLoggedIn) {
-        showNotice('Please log in via the RankSniper popup to use this feature.', 'error');
-        return;
-      }
-      if (userPlan !== 'pro') {
-        showNotice('Active subscription required. Visit getranksniper.com to subscribe.', 'error');
-        return;
-      }
-
-      // Pull review data from the search page DOM (KuKPRc cards if present,
-      // otherwise fall back to any visible review text on the page)
-      let reviewData = null;
-      const cards = [...document.querySelectorAll('div.KuKPRc')];
-      if (cards.length > 0) {
-        reviewData = extractReviewDataFromCard(cards[0]);
-      }
-
-      // Fallback: grab first visible review text block from the knowledge panel
-      if (!reviewData || !reviewData.reviewText) {
-        const textEl = document.querySelector('div.Fv38Af');
-        const starsEl = document.querySelector('span[role="img"][aria-label*="out of"]');
-        const nameEl = document.querySelector('a.PskQHd');
-        reviewData = {
-          reviewerName: nameEl ? nameEl.innerText.trim() : 'Customer',
-          rating: starsEl ? parseFloat(starsEl.getAttribute('aria-label').match(/[\d.]+/)?.[0] || '5') : 5,
-          reviewText: textEl ? textEl.innerText.trim() : ''
-        };
-      }
-
-      if (!reviewData.reviewText) {
-        showNotice('Could not find review text. Try scrolling the review into view first.', 'error');
-        return;
-      }
-
-      showPanel(replyToReviewsBtn.closest('div') || document.body, reviewData.text, reviewData);
-      btn.disabled = true;
-      btn.textContent = 'Generating...';
-      try {
-        const responseText = await callGemini(reviewData, null, null);
-        const anchor = replyToReviewsBtn.parentElement || document.body;
-        showPanel(anchor, responseText, reviewData);
-      } catch (err) {
-        showNotice('Error: ' + err.message, 'error');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = '⚡ Draft AI Responses';
-      }
-    });
-
-    // Insert right after the "Reply to reviews" button
-    replyToReviewsBtn.insertAdjacentElement('afterend', btn);
-    console.log('[RankSniper] ⚡ Injected Draft AI Responses button next to Reply to reviews');
-  }
-
   function injectButtons() {
     const url = window.location.href;
-    const isIframe = url.includes('/customers/reviews') || url.includes('knm=0');
-    const isSearch = url.includes('google.com/search');
     const isBusiness = url.includes('business.google.com');
+    const isSearch = url.includes('google.com/search');
 
-    if (isIframe || isSearch) {
-      // Try KuKPRc cards (exist in iframe and sometimes on search page)
-      const cards = [...document.querySelectorAll('div.KuKPRc')];
-      console.log('[RankSniper] Found', cards.length, 'review cards (KuKPRc)');
-
-      cards.forEach((card) => {
-        if (card.querySelector('.ranksniper-btn')) return;
-        const reviewData = extractReviewDataFromCard(card);
-        if (!reviewData.reviewText) return;
-        console.log('[RankSniper] Injecting for:', reviewData.reviewerName, '★', reviewData.rating);
-
-        const btn = document.createElement('button');
-        btn.className = 'ranksniper-btn';
-        btn.textContent = '⚡ Draft AI Response';
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          await handleDraftClick(btn, reviewData, card);
-        });
-
-        // In the iframe the Reply link is inside .FkJOzc — inject right before it
-        const replyLink = card.querySelector('a[jsname], .F87tLd, [data-reply]');
-        const actionRow = card.querySelector('.FkJOzc');
-        if (replyLink) {
-          replyLink.insertAdjacentElement('beforebegin', btn);
-        } else if (actionRow) {
-          actionRow.style.display = 'flex';
-          actionRow.style.alignItems = 'center';
-          actionRow.style.gap = '8px';
-          actionRow.prepend(btn);
-        } else {
-          card.appendChild(btn);
-        }
-      });
-
-      // Also try the search page "Reply to reviews" button as fallback
-      if (isSearch) injectReplyToReviewsButton();
-
-    } else if (isBusiness) {
-
-    } else if (isBusiness) {
+    // ── business.google.com ──────────────────────────────────────────────────────
+    if (isBusiness) {
       const reviews = getReviewsFromPageData();
       const cards = [...document.querySelectorAll('div.OUCuxb')];
+      console.log('[RankSniper] business.google.com — found', cards.length, 'cards,', reviews.length, 'reviews');
       cards.forEach((card, i) => {
         if (card.querySelector('.ranksniper-btn')) return;
         const reviewData = reviews[i] || reviews[0];
@@ -460,10 +345,44 @@
         const btn = document.createElement('button');
         btn.className = 'ranksniper-btn';
         btn.textContent = 'Draft AI Response';
-        btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, card); });
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          await handleDraftClick(btn, reviewData, card);
+        });
         const row = card.querySelector('div.lGXsGc');
         if (row) row.appendChild(btn);
         else card.appendChild(btn);
+      });
+      return;
+    }
+
+    // ── google.com/search ────────────────────────────────────────────────────────
+    if (isSearch) {
+      const cards = [...document.querySelectorAll('div.KuKPRc')];
+      console.log('[RankSniper] google.com/search — found', cards.length, 'KuKPRc cards');
+      cards.forEach((card) => {
+        if (card.querySelector('.ranksniper-btn')) return;
+        const reviewData = extractReviewDataFromCard(card);
+        if (!reviewData.reviewText) return;
+        console.log('[RankSniper] Injecting for:', reviewData.reviewerName, 'stars:', reviewData.rating);
+        const btn = document.createElement('button');
+        btn.className = 'ranksniper-btn';
+        btn.textContent = 'Draft AI Response';
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          await handleDraftClick(btn, reviewData, card);
+        });
+        const actionRow = card.querySelector('.FkJOzc');
+        if (actionRow) {
+          actionRow.style.display = 'flex';
+          actionRow.style.alignItems = 'center';
+          actionRow.style.gap = '8px';
+          actionRow.appendChild(btn);
+        } else {
+          card.appendChild(btn);
+        }
       });
     }
   }
@@ -473,19 +392,15 @@
     const hasNewNodes = mutations.some(m => m.addedNodes.length > 0);
     if (!hasNewNodes) return;
     clearTimeout(t);
-    t = setTimeout(() => {
-      injectButtons();
-    }, 500);
+    t = setTimeout(injectButtons, 500);
   }).observe(document.body, { subtree: true, childList: true });
 
   async function init() {
     await loadProfile();
-    const url = window.location.href;
-    const isIframe = url.includes('/customers/reviews') || url.includes('knm=0');
-    console.log('[RankSniper] v1.7 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan, '| iframe:', isIframe);
-    setTimeout(injectButtons, 1000);
-    setTimeout(injectButtons, 2500);
-    setTimeout(injectButtons, 5000);
+    console.log('[RankSniper] v1.8 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
+    setTimeout(injectButtons, 1500);
+    setTimeout(injectButtons, 3000);
+    setTimeout(injectButtons, 6000);
   }
 
   document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
