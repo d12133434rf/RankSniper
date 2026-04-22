@@ -334,28 +334,91 @@
     setTimeout(() => n.remove(), 4000);
   }
 
-  // ─── UPDATED: injectButtons now uses KuKPRc cards with confirmed selectors ───
+  // ─── Inject button next to "Reply to reviews" on the main search page ────────
+  function injectReplyToReviewsButton() {
+    // "Reply to reviews" button is identified by jsname="WSkPNc"
+    const replyToReviewsBtn = document.querySelector('button[jsname="WSkPNc"]');
+    if (!replyToReviewsBtn) return;
+    if (document.querySelector('.ranksniper-open-btn')) return; // already injected
+
+    const btn = document.createElement('button');
+    btn.className = 'ranksniper-btn ranksniper-open-btn';
+    btn.textContent = '⚡ Draft AI Responses';
+    btn.title = 'Open RankSniper AI response panel';
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      await loadProfile();
+
+      if (!isLoggedIn) {
+        showNotice('Please log in via the RankSniper popup to use this feature.', 'error');
+        return;
+      }
+      if (userPlan !== 'pro') {
+        showNotice('Active subscription required. Visit getranksniper.com to subscribe.', 'error');
+        return;
+      }
+
+      // Pull review data from the search page DOM (KuKPRc cards if present,
+      // otherwise fall back to any visible review text on the page)
+      let reviewData = null;
+      const cards = [...document.querySelectorAll('div.KuKPRc')];
+      if (cards.length > 0) {
+        reviewData = extractReviewDataFromCard(cards[0]);
+      }
+
+      // Fallback: grab first visible review text block from the knowledge panel
+      if (!reviewData || !reviewData.reviewText) {
+        const textEl = document.querySelector('div.Fv38Af');
+        const starsEl = document.querySelector('span[role="img"][aria-label*="out of"]');
+        const nameEl = document.querySelector('a.PskQHd');
+        reviewData = {
+          reviewerName: nameEl ? nameEl.innerText.trim() : 'Customer',
+          rating: starsEl ? parseFloat(starsEl.getAttribute('aria-label').match(/[\d.]+/)?.[0] || '5') : 5,
+          reviewText: textEl ? textEl.innerText.trim() : ''
+        };
+      }
+
+      if (!reviewData.reviewText) {
+        showNotice('Could not find review text. Try scrolling the review into view first.', 'error');
+        return;
+      }
+
+      showPanel(replyToReviewsBtn.closest('div') || document.body, reviewData.text, reviewData);
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+      try {
+        const responseText = await callGemini(reviewData, null, null);
+        const anchor = replyToReviewsBtn.parentElement || document.body;
+        showPanel(anchor, responseText, reviewData);
+      } catch (err) {
+        showNotice('Error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⚡ Draft AI Responses';
+      }
+    });
+
+    // Insert right after the "Reply to reviews" button
+    replyToReviewsBtn.insertAdjacentElement('afterend', btn);
+    console.log('[RankSniper] ⚡ Injected Draft AI Responses button next to Reply to reviews');
+  }
+
   function injectButtons() {
     const url = window.location.href;
     const isSearch = url.includes('google.com/search');
     const isBusiness = url.includes('business.google.com');
 
     if (isSearch) {
-      // Use confirmed card selector: div.KuKPRc
+      injectReplyToReviewsButton();
+
+      // Also try KuKPRc cards in case they exist on the page
       const cards = [...document.querySelectorAll('div.KuKPRc')];
       console.log('[RankSniper] Found', cards.length, 'review cards (KuKPRc)');
-
       cards.forEach((card) => {
         if (card.querySelector('.ranksniper-btn')) return;
-
         const reviewData = extractReviewDataFromCard(card);
-        if (!reviewData.reviewText) {
-          console.log('[RankSniper] Skipping card — no review text found');
-          return;
-        }
-
-        console.log('[RankSniper] Injecting button for:', reviewData.reviewerName, '| Stars:', reviewData.rating, '| Text:', reviewData.reviewText.substring(0, 40));
-
+        if (!reviewData.reviewText) return;
         const btn = document.createElement('button');
         btn.className = 'ranksniper-btn';
         btn.textContent = 'Draft AI Response';
@@ -364,8 +427,6 @@
           e.preventDefault();
           await handleDraftClick(btn, reviewData, card);
         });
-
-        // Try to find the Reply button row — class FkJOzc is the action row in KuKPRc
         const actionRow = card.querySelector('.FkJOzc');
         if (actionRow) {
           actionRow.style.display = 'flex';
