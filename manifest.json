@@ -9,18 +9,21 @@
     "https://www.google.com/*",
     "https://google.com/*",
     "https://ranksniperweb-production.up.railway.app/*",
-    "https://generativelanguage.googleapis.com/*"
+    "https://generativelanguage.googleapis.com/*",
+    "https://local.google.com/*"
   ],
   "content_scripts": [
     {
       "matches": [
         "https://business.google.com/*",
         "https://www.google.com/*",
-        "https://google.com/*"
+        "https://google.com/*",
+        "https://local.google.com/*"
       ],
       "js": ["content.js"],
       "css": ["panel.css"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
   "action": {
