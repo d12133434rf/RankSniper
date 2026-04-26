@@ -36,21 +36,21 @@ async function callGeminiPopup(reviewData, instruction, previousResponse) {
   if (instruction && previousResponse) {
     prompt = 'You wrote this response to a Google review for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants you to change it: "' + instruction + '"\n\nRewrite the response keeping it natural and human. Start with "Hi ' + firstName + ',". Under 150 words. Never use em dashes, hyphens, or any kind of dash. Never use the word thrilled, delighted, or excited. Include city (' + city + ') and business name (' + biz + ') naturally.' + custom + '\n\nWrite only the new response, nothing else.';
   } else {
-    const variationSeeds = [
-      'Start by addressing what they said specifically, then end with an invitation.',
-      'Lead with something you are actually doing about it, then acknowledge their experience.',
-      'Start warm, be direct about the issue, end brief.',
-      'Acknowledge the specific complaint first. Then one sentence on what you are fixing. Then a warm close.',
-      'Open with their name and jump straight to the point. No fluff.'
+    const negativeOpeners = [
+      'That is on us',
+      'You are right and we hear you',
+      'That is not the experience we want for anyone',
+      'Honestly that is fair feedback',
+      'We hear you and that is not okay'
     ];
-    const seed = variationSeeds[Math.floor(Math.random() * variationSeeds.length)];
-    const sentimentInstruction = reviewData.rating <= 2
-      ? 'This is a negative review. Do NOT start with "We are so sorry" or "We apologize" — find a different, more human way to acknowledge the issue. Reference the specific complaint they made (' + reviewData.reviewText.substring(0, 60) + '). Do not use phrases like "looking into it", "we take pride", "we strive to", or "we are committed to". Sound like the actual owner wrote this in 30 seconds, not a PR team.'
+    const opener = negativeOpeners[Math.floor(Math.random() * negativeOpeners.length)];
+    const g = reviewData.rating <= 2
+      ? 'Negative review. Acknowledge what went wrong specifically. Use a variation of this opener somewhere natural: "' + opener + '". Apologize genuinely without being over the top. Mention one specific thing you will do or already do to fix it. End with a warm invite back. Do NOT say: we are so sorry, we apologize, we are looking into it, we take pride, we strive to, we are committed, it is our goal, rest assured, we pride ourselves.'
       : reviewData.rating === 3
-      ? 'This is a mixed review. Acknowledge what they liked and what missed. Be specific to their review. Sound genuine.'
-      : 'This is a positive review. Thank them warmly. Reference something specific they mentioned. Keep it brief and real.';
-    const kwPrompt = keywords ? ' If one or two of these keywords fit naturally into a sentence, include them — but only if they sound organic, never force them: ' + keywords + '.' : '';
-    prompt = 'Write a Google review response for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '.\n\nStart with "Hi ' + firstName + ',".\n' + sentimentInstruction + '\nStructure hint: ' + seed + '\n' + kwPrompt + '\nRules: Under 100 words. No dashes of any kind. No corporate filler. Do not use: thrilled, delighted, excited, wonderful, amazing, fantastic, cherished, means the world, we look forward, we hope to see you, thank you for sharing, thank you for taking the time, we are committed, it is our goal, rest assured, we take pride, we pride ourselves, we strive to, do not hesitate. Write like a real business owner texting a response, not a marketing department.' + custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response, nothing else.';
+      ? 'Mixed review. Thank them for the honest feedback. Acknowledge what missed the mark specifically. Keep it genuine and brief.'
+      : 'Positive review. Thank them warmly and reference something specific they mentioned. Keep it short and real.';
+    const kwPrompt = keywords ? ' Naturally include 2 to 3 of these keywords where they fit — do not force all of them, only use ones that sound natural in context: ' + keywords + '.' : '';
+    prompt = 'Write a Google review response for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + ',". ' + g + kwPrompt + ' Rules: 60 to 120 words. No dashes of any kind. No corporate filler phrases. Do not use: thrilled, delighted, excited, wonderful, amazing, fantastic, cherished, means the world, we look forward, we hope to see you, thank you for sharing, thank you for taking the time, at your earliest convenience, do not hesitate. Sound like a real human business owner, warm but direct.' + custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response, nothing else.';
   }
 
   const res = await fetch(GEMINI_URL + '?key=' + apiKey, {
