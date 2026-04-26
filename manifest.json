@@ -6,18 +6,12 @@
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
     "https://business.google.com/*",
-    "https://www.google.com/*",
-    "https://google.com/*",
     "https://ranksniperweb-production.up.railway.app/*",
     "https://generativelanguage.googleapis.com/*"
   ],
   "content_scripts": [
     {
-      "matches": [
-        "https://business.google.com/*",
-        "https://www.google.com/*",
-        "https://google.com/*"
-      ],
+      "matches": ["https://business.google.com/*"],
       "js": ["content.js"],
       "css": ["panel.css"],
       "run_at": "document_idle"
