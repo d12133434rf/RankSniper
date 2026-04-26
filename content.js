@@ -326,16 +326,15 @@
     cancelBtns.forEach((cancelBtn) => {
       if (cancelBtn.nextElementSibling?.classList.contains('ranksniper-btn')) return;
 
-      const reviewContainer = cancelBtn.closest('li, [data-review-id], .k6DwOf, .oFvkI') || cancelBtn.parentElement?.parentElement?.parentElement;
+      // Container is div.OUCuxb — 4 levels up from Cancel button (confirmed via console)
+      const reviewContainer = cancelBtn.parentElement?.parentElement?.parentElement?.parentElement;
 
-      // Confirmed selectors from DOM inspection of business.google.com/reviews
       const reviewTextEl = reviewContainer?.querySelector('span.oiQd1c');
       const reviewText = reviewTextEl ? reviewTextEl.innerText.trim() : '';
 
       const nameEl = reviewContainer?.querySelector('a.LH5kS');
       const reviewerName = nameEl ? nameEl.innerText.trim() : 'Customer';
 
-      // Count filled stars: span.DPvwYc.MOLvNc = filled, span.DPvwYc.vVwMD = empty
       const filledStars = reviewContainer?.querySelectorAll('span.DPvwYc.MOLvNc');
       const rating = filledStars && filledStars.length > 0 ? filledStars.length : 5;
 
