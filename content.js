@@ -160,7 +160,7 @@
       prompt = 'You wrote this Google review response for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants: "' + instruction + '"\n\nRewrite it. Start with "Hi ' + firstName + ',". Keep it under 100 words. Sound like a real person. No dashes.' + custom + '\n\nWrite only the response.';
     } else {
       const sentimentInstruction = reviewData.rating <= 2
-        ? 'This is a negative review. Do NOT start with "We are so sorry" or "We apologize" — find a different, more human way to acknowledge the issue. Reference the specific complaint they made (' + reviewData.reviewText.substring(0, 60) + '). Do not use phrases like "looking into it", "we take pride", "we strive to", or "we are committed to". Sound like the actual owner wrote this in 30 seconds, not a PR team.'
+        ? 'This is a negative review. Do NOT start with "We're so sorry" or "We apologize" — find a different, more human way to acknowledge the issue. Reference the specific complaint they made (' + reviewData.reviewText.substring(0, 60) + '). Do not use phrases like "we're looking into it", "we take pride", "we strive to", or "we are committed to". Sound like the actual owner wrote this in 30 seconds, not a PR team.'
         : reviewData.rating === 3
         ? 'This is a mixed review. Acknowledge what they liked and what missed. Be specific to their review. Sound genuine.'
         : 'This is a positive review. Thank them warmly. Reference something specific they mentioned. Keep it brief and real.';
