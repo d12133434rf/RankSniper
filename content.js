@@ -327,12 +327,17 @@
       if (cancelBtn.nextElementSibling?.classList.contains('ranksniper-btn')) return;
 
       const reviewContainer = cancelBtn.closest('li, [data-review-id], .k6DwOf, .oFvkI') || cancelBtn.parentElement?.parentElement?.parentElement;
-      const reviewTextEl = reviewContainer?.querySelector('.OA1nbd, .Jtu6fd, .wiI7pd, [jsname="fbQN7e"]');
+
+      // Confirmed selectors from DOM inspection of business.google.com/reviews
+      const reviewTextEl = reviewContainer?.querySelector('span.oiQd1c');
       const reviewText = reviewTextEl ? reviewTextEl.innerText.trim() : '';
-      const nameEl = reviewContainer?.querySelector('.TSUbDb, .d4r55, .sCuL2, [jsname="gp20Tb"]');
-      const reviewerName = nameEl ? nameEl.innerText.trim().split('\n')[0] : 'Customer';
-      const starsEl = reviewContainer?.querySelector('[aria-label*="out of"], [aria-label*="star"]');
-      const rating = starsEl ? parseFloat(starsEl.getAttribute('aria-label').match(/[\d.]+/)?.[0] || '5') : 5;
+
+      const nameEl = reviewContainer?.querySelector('a.LH5kS');
+      const reviewerName = nameEl ? nameEl.innerText.trim() : 'Customer';
+
+      // Count filled stars: span.DPvwYc.MOLvNc = filled, span.DPvwYc.vVwMD = empty
+      const filledStars = reviewContainer?.querySelectorAll('span.DPvwYc.MOLvNc');
+      const rating = filledStars && filledStars.length > 0 ? filledStars.length : 5;
 
       const reviewData = { reviewerName, rating, reviewText };
 
