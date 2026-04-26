@@ -65,10 +65,22 @@ function scoreResponsePopup(text, profile) {
   else if (lower.startsWith('hi there')) score += 1;
   if (profile?.city && lower.includes(profile.city.split(',')[0].trim().toLowerCase())) score += 8;
   if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 8;
-  const hasCTA = lower.includes('come back') || lower.includes('visit us') || lower.includes('see you') || lower.includes('stop by') || lower.includes('love to have you');
+  const hasCTA = lower.includes('come back') || lower.includes('visit us') || lower.includes('see you') ||
+    lower.includes('give us another') || lower.includes('contact us') || lower.includes('stop by') ||
+    lower.includes('welcome you back') || lower.includes('hope to see') || lower.includes('love to have you');
   if (hasCTA) score += 6;
-  if (!text.includes('—') && !text.includes(' - ')) score += 3;
-  const genericPhrases = ['we strive to', 'we apologize for any inconvenience', 'do not hesitate', 'we are committed to', 'rest assured', 'we value your feedback', 'thrilled', 'delighted', 'means the world', 'thank you for sharing', 'thank you for taking the time', 'it means a lot', 'reviews like yours'];
+  if (!text.includes('\u2014') && !text.includes(' - ')) score += 3;
+  const kwSources = [profile?.keywords, profile?.services].filter(Boolean).join(',');
+  if (kwSources) {
+    const kwList = kwSources.split(',').map(k => k.trim().replace(/\[City\]/gi, '').trim().toLowerCase()).filter(Boolean);
+    const kwFound = kwList.filter(k => k && lower.includes(k)).length;
+    score += Math.min(kwFound * 4, 22);
+  }
+  const genericPhrases = ['we strive to', 'we apologize for any inconvenience', 'at your earliest convenience',
+    'do not hesitate', 'please do not hesitate', 'we are committed to', 'it is our goal',
+    'we take pride', 'rest assured', 'we value your feedback', 'thank you for bringing this to our attention',
+    'thrilled', 'delighted', 'means the world', 'thank you for sharing', 'thank you for taking the time',
+    'we pride ourselves', 'it means a lot', 'reviews like yours'];
   score -= genericPhrases.filter(p => lower.includes(p)).length * 5;
   if (!lower.includes('hi') && !lower.includes('thank')) score -= 8;
   return Math.min(Math.max(Math.round(score), 0), 100);
@@ -312,6 +324,9 @@ document.addEventListener('DOMContentLoaded', () => {
     s.addEventListener('mouseout', () => setStars(manualRating));
   });
 
+  // Track current manual review data for saving on copy
+  let manualCurrentReviewData = null;
+
   async function generateManual(instruction, previousResponse) {
     const reviewerName = document.getElementById('manual-name').value.trim() || 'Customer';
     const reviewText = document.getElementById('manual-review').value.trim();
@@ -327,16 +342,32 @@ document.addEventListener('DOMContentLoaded', () => {
       const scoreEl = document.getElementById('manual-score');
       textarea.value = response;
       box.style.display = 'block';
+
       const storedProfile = await new Promise(resolve => chrome.storage.local.get(['ranksniperProfile'], r => resolve(r.ranksniperProfile || {})));
       const score = scoreResponsePopup(response, storedProfile);
       const color = score >= 80 ? '#22c55e' : score >= 60 ? '#f59e0b' : '#ef4444';
       scoreEl.textContent = 'Score: ' + score + '/100';
       scoreEl.style.background = color + '20'; scoreEl.style.border = '1px solid ' + color; scoreEl.style.color = color;
-      chrome.storage.local.get(['rsHistory'], result => {
-        const history = result.rsHistory || [];
-        history.unshift({ date: new Date().toLocaleDateString(), reviewerName, rating, reviewText: reviewText.substring(0, 100), response, business: storedProfile.businessName || 'Unknown' });
-        chrome.storage.local.set({ rsHistory: history.slice(0, 50) });
-      });
+
+      // Show keywords used
+      const kwEl = document.getElementById('manual-keywords-used');
+      if (kwEl) {
+        const found = [];
+        const lower = response.toLowerCase();
+        if (storedProfile.city && lower.includes(storedProfile.city.toLowerCase())) found.push(storedProfile.city);
+        if (storedProfile.businessName && lower.includes(storedProfile.businessName.toLowerCase())) found.push(storedProfile.businessName);
+        if (storedProfile.keywords || storedProfile.services) {
+          const kwList = (storedProfile.keywords || storedProfile.services).split(',').map(k => k.trim()).filter(Boolean);
+          kwList.forEach(k => { if (k && lower.includes(k.toLowerCase())) found.push(k); });
+        }
+        kwEl.innerHTML = found.length > 0
+          ? found.map(k => '<span style="background:#1e3a5f;border:1px solid #2563eb50;border-radius:4px;color:#60a5fa;padding:2px 6px;font-size:10px;">' + k + '</span>').join(' ')
+          : '<span style="color:#475569;font-size:10px;">None detected</span>';
+      }
+
+      // Store current data for saving on Copy
+      manualCurrentReviewData = { reviewerName, rating, reviewText, response, business: storedProfile.businessName || 'Unknown', score };
+
     } catch (err) { alert('Error: ' + err.message); }
     finally { btn.disabled = false; btn.textContent = '⚡ Generate Response'; }
   }
@@ -344,12 +375,37 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('manual-generate-btn').addEventListener('click', () => generateManual(null, null));
   document.getElementById('manual-regen-btn').addEventListener('click', () => generateManual(null, null));
 
-  document.getElementById('manual-copy-btn').addEventListener('click', () => {
+  document.getElementById('manual-copy-btn').addEventListener('click', async () => {
     const text = document.getElementById('manual-response-text').value;
+    if (!text) return;
     navigator.clipboard.writeText(text);
     const btn = document.getElementById('manual-copy-btn');
     btn.textContent = 'Copied!';
     setTimeout(() => btn.textContent = 'Copy', 2000);
+
+    if (!manualCurrentReviewData) return;
+    const d = manualCurrentReviewData;
+    // Update response to current textarea value in case user edited it
+    d.response = text;
+
+    // Save to local history
+    chrome.storage.local.get(['rsHistory'], result => {
+      const history = result.rsHistory || [];
+      history.unshift({ date: new Date().toLocaleDateString(), reviewerName: d.reviewerName, rating: d.rating, reviewText: d.reviewText.substring(0, 100), response: d.response, business: d.business });
+      chrome.storage.local.set({ rsHistory: history.slice(0, 50) });
+    });
+
+    // Save to backend (website history)
+    chrome.storage.local.get(['rsToken'], async r => {
+      if (!r.rsToken) return;
+      try {
+        await fetch('https://ranksniperweb-production.up.railway.app/api/responses/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + r.rsToken },
+          body: JSON.stringify({ reviewerName: d.reviewerName, rating: d.rating, reviewText: d.reviewText.substring(0, 500), responseText: d.response, businessName: d.business, score: d.score || null })
+        });
+      } catch (err) { console.log('[RankSniper] Could not save to backend:', err.message); }
+    });
   });
 
   async function sendRefine() {
