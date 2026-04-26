@@ -29,7 +29,7 @@
     .login-footer a { color: #3b82f6; text-decoration: none; }
 
     .tabs { display: flex; border-bottom: 1px solid #1e293b; }
-    .tab { flex: 1; padding: 10px; text-align: center; font-size: 11px; font-weight: 700; color: #475569; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.2s; }
+    .tab { flex: 1; padding: 10px; text-align: center; font-size: 10px; font-weight: 700; color: #475569; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.2s; }
     .tab.active { color: #3b82f6; border-bottom: 2px solid #3b82f6; }
     .tab:hover { color: #94a3b8; }
 
@@ -104,6 +104,27 @@
 
     .footer { padding: 8px 16px; display: flex; justify-content: space-between; font-size: 10px; color: #64748b; }
     .footer a { color: #3b82f6; text-decoration: none; font-weight: 600; }
+
+    /* Manual tab styles */
+    .star-picker { display: flex; gap: 6px; margin-bottom: 4px; }
+    .star-picker span { font-size: 22px; cursor: pointer; color: #334155; transition: color 0.15s; line-height: 1; }
+    .star-picker span.active { color: #f59e0b; }
+    .manual-generate-btn { width: 100%; background: linear-gradient(135deg, #2563eb, #3b82f6); color: #fff; border: none; padding: 9px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.2s; margin-top: 4px; }
+    .manual-generate-btn:hover { opacity: 0.9; }
+    .manual-generate-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .manual-response-box { display: none; margin-top: 12px; background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 10px; }
+    .manual-response-box textarea { width: 100%; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; padding: 8px 10px; font-size: 12px; outline: none; font-family: inherit; resize: vertical; min-height: 100px; line-height: 1.5; }
+    .manual-response-box textarea:focus { border-color: #3b82f6; }
+    .manual-response-actions { display: flex; gap: 6px; margin-top: 8px; }
+    .manual-copy-btn { flex: 1; background: linear-gradient(135deg, #2563eb, #3b82f6); color: #fff; border: none; padding: 7px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .manual-regen-btn { background: #1e293b; border: 1px solid #334155; color: #94a3b8; padding: 7px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .manual-score { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; display: inline-block; margin-bottom: 8px; }
+    .manual-refine { margin-top: 8px; }
+    .manual-refine-row { display: flex; gap: 6px; margin-top: 6px; }
+    .manual-refine-input { flex: 1; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; padding: 6px 8px; font-size: 11px; outline: none; font-family: inherit; }
+    .manual-refine-input:focus { border-color: #3b82f6; }
+    .manual-refine-btn { background: #2563eb; border: none; border-radius: 6px; color: #fff; padding: 6px 10px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .manual-refine-label { font-size: 10px; color: #334155; }
   </style>
 </head>
 <body>
@@ -140,6 +161,7 @@
   <div id="main-app" style="display:none;">
     <div class="tabs">
       <div class="tab active" data-tab="profile">Profile</div>
+      <div class="tab" data-tab="manual">Draft</div>
       <div class="tab" data-tab="history">History</div>
       <div class="tab" data-tab="howto">How To</div>
     </div>
@@ -164,13 +186,11 @@
 
       <div class="section">
         <div class="section-title">Business Profile</div>
-
         <div class="profile-selector">
           <select id="profile-select"></select>
           <button class="btn-small" id="btn-new-profile">+ New</button>
           <button class="btn-small danger" id="btn-delete-profile">Delete</button>
         </div>
-
         <div class="form-group">
           <label>Profile Name</label>
           <input type="text" id="profileName" placeholder="e.g. Main Location">
@@ -235,6 +255,54 @@
       </div>
     </div>
 
+    <!-- MANUAL DRAFT TAB -->
+    <div class="tab-content" id="tab-manual">
+      <div class="section">
+        <div class="section-title">Draft a Response Manually</div>
+        <p style="font-size:11px;color:#475569;margin-bottom:14px;line-height:1.5;">Paste any review text below and get an AI-generated response instantly — no need to be on the reviews page.</p>
+
+        <div class="form-group">
+          <label>Customer Name</label>
+          <input type="text" id="manual-name" placeholder="e.g. Sarah M.">
+        </div>
+
+        <div class="form-group">
+          <label>Star Rating</label>
+          <div class="star-picker" id="star-picker">
+            <span data-val="1">★</span>
+            <span data-val="2">★</span>
+            <span data-val="3">★</span>
+            <span data-val="4">★</span>
+            <span data-val="5">★</span>
+          </div>
+          <input type="hidden" id="manual-rating" value="5">
+        </div>
+
+        <div class="form-group">
+          <label>Review Text</label>
+          <textarea id="manual-review" rows="4" placeholder="Paste the customer's review here..."></textarea>
+        </div>
+
+        <button class="manual-generate-btn" id="manual-generate-btn">⚡ Generate Response</button>
+
+        <div class="manual-response-box" id="manual-response-box">
+          <div id="manual-score" class="manual-score"></div>
+          <textarea id="manual-response-text" rows="6"></textarea>
+          <div class="manual-response-actions">
+            <button class="manual-copy-btn" id="manual-copy-btn">Copy</button>
+            <button class="manual-regen-btn" id="manual-regen-btn">Regenerate</button>
+          </div>
+          <div class="manual-refine">
+            <div class="manual-refine-label">Refine this response:</div>
+            <div class="manual-refine-row">
+              <input type="text" class="manual-refine-input" id="manual-refine-input" placeholder='e.g. "Make it shorter"'>
+              <button class="manual-refine-btn" id="manual-refine-btn">Go</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="tab-content" id="tab-history">
       <div class="history-list" id="history-list">
         <div class="history-empty">No responses yet. Generate your first AI response!</div>
@@ -249,6 +317,10 @@
         <div class="step"><div class="step-num">2</div><div class="step-text">Click <strong>Reply</strong> on any review to open the reply box, then click <strong>Draft AI Response</strong></div></div>
         <div class="step"><div class="step-num">3</div><div class="step-text">Review the response, refine it using the chat box if needed</div></div>
         <div class="step"><div class="step-num">4</div><div class="step-text">Click <strong>Copy</strong>, then paste with <strong>Ctrl+V</strong> into the Google reply box and hit Post</div></div>
+        <div style="margin-top:14px;padding:10px;background:#0f172a;border-radius:8px;border:1px solid #1e293b;">
+          <div style="font-size:10px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Tip: Draft Tab</div>
+          <div style="font-size:11px;color:#475569;line-height:1.5;">Use the <strong style="color:#94a3b8;">Draft</strong> tab to generate a response from any review — just paste the text, no need to be on the reviews page.</div>
+        </div>
       </div>
     </div>
   </div>
