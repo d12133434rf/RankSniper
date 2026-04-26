@@ -1,5 +1,8 @@
-// RankSniper - Content Script v1.5
+// RankSniper - Content Script v1.9
 (function () {
+  // Only run on business.google.com
+  if (!window.location.href.includes('business.google.com')) return;
+
   const BACKEND = 'https://ranksniperweb-production.up.railway.app';
   let businessProfile = null;
   let geminiApiKey = null;
@@ -28,9 +31,7 @@
     }
   });
 
-  // Save to both Chrome local storage AND backend Supabase
   async function saveToHistory(reviewerName, rating, reviewText, response, score) {
-    // Save locally
     chrome.storage.local.get(['rsHistory'], result => {
       const history = result.rsHistory || [];
       history.unshift({
@@ -43,7 +44,6 @@
       chrome.storage.local.set({ rsHistory: history.slice(0, 50) });
     });
 
-    // Save to backend — re-read token in case it wasn't loaded yet
     const storedToken = rsToken || await new Promise(resolve => {
       chrome.storage.local.get(['rsToken'], r => resolve(r.rsToken || null));
     });
@@ -72,41 +72,25 @@
     let score = 44;
     const lower = text.toLowerCase();
     const words = text.split(/\s+/).length;
-
-    // Length: ideal 60-120 words (+10), too short/long = less
     if (words >= 60 && words <= 120) score += 10;
     else if (words >= 40 && words < 60) score += 5;
     else if (words > 120 && words <= 160) score += 3;
     else if (words < 40) score -= 8;
-
-    // Greeting (+5)
     if (lower.startsWith('hi ') && !lower.startsWith('hi there')) score += 5;
     else if (lower.startsWith('hi there')) score += 1;
-
-    // City mentioned (+8)
     if (profile?.city && lower.includes(profile.city.split(',')[0].trim().toLowerCase())) score += 8;
-
-    // Business name mentioned (+8)
     if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 8;
-
-    // CTA (+6)
     const hasCTA = lower.includes('come back') || lower.includes('visit us') || lower.includes('see you') ||
       lower.includes('give us another') || lower.includes('contact us') || lower.includes('stop by') ||
       lower.includes('welcome you back') || lower.includes('hope to see') || lower.includes('love to have you');
     if (hasCTA) score += 6;
-
-    // No dashes (+3)
     if (!text.includes('—') && !text.includes(' - ')) score += 3;
-
-    // SEO keywords — 4 pts per keyword, max 16 pts (4 keywords)
     const kwSources = [profile?.keywords, profile?.services].filter(Boolean).join(',');
     if (kwSources) {
       const kwList = kwSources.split(',').map(k => k.trim().replace(/\[City\]/gi, '').trim().toLowerCase()).filter(Boolean);
       const kwFound = kwList.filter(k => k && lower.includes(k)).length;
       score += Math.min(kwFound * 4, 22);
     }
-
-    // Penalties for AI fluff
     const genericPhrases = ['we strive to', 'we apologize for any inconvenience', 'at your earliest convenience',
       'do not hesitate', 'please do not hesitate', 'we are committed to', 'it is our goal',
       'we take pride', 'rest assured', 'we value your feedback', 'thank you for bringing this to our attention',
@@ -114,10 +98,7 @@
       'we pride ourselves', 'it means a lot', 'reviews like yours'];
     const genericCount = genericPhrases.filter(p => lower.includes(p)).length;
     score -= genericCount * 5;
-
-    // Missing greeting
     if (!lower.includes('hi') && !lower.includes('thank')) score -= 8;
-
     return Math.min(Math.max(Math.round(score), 0), 100);
   }
 
@@ -151,16 +132,6 @@
     } catch (e) { return []; }
   }
 
-  function getSearchReviews() {
-    try {
-      return [...document.querySelectorAll('.bwb7ce')].map(card => ({
-        reviewerName: (card.querySelector('.Vpc5Fe') || {innerText:'Customer'}).innerText.trim() || 'Customer',
-        rating: parseFloat(((card.querySelector('[aria-label*="out of"]') || {getAttribute:()=>'5 out of 5'}).getAttribute('aria-label')).match(/[\d.]+/)?.[0] || '5'),
-        reviewText: (card.querySelector('.OA1nbd') || {innerText:''}).innerText.trim()
-      })).filter(r => r.reviewText.length > 0);
-    } catch (e) { return []; }
-  }
-
   async function callGemini(reviewData, instruction, previousResponse) {
     if (!geminiApiKey) throw new Error('No API key. Open RankSniper popup and enter your Gemini API key.');
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=' + geminiApiKey;
@@ -187,7 +158,6 @@
     if (!res.ok) { const err = await res.json(); throw new Error(err?.error?.message || 'Gemini API error'); }
     const data = await res.json();
     let output = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Could not generate response.';
-    // Strip AI fluff words that Gemini still uses despite instructions
     output = output.replace(/\bthrilled\b/gi, 'happy');
     output = output.replace(/\bdelighted\b/gi, 'glad');
     output = output.replace(/\bwonderful\b/gi, 'great');
@@ -200,7 +170,6 @@
 
   async function handleDraftClick(btn, reviewData, card) {
     await loadProfile();
-
     if (!isLoggedIn) {
       showNotice('Please log in via the RankSniper popup to use this feature.', 'error');
       return;
@@ -209,7 +178,6 @@
       showNotice('Active subscription required. Visit getranksniper.com to subscribe.', 'error');
       return;
     }
-
     btn.disabled = true;
     btn.textContent = 'Generating...';
     try {
@@ -350,43 +318,42 @@
     setTimeout(() => n.remove(), 4000);
   }
 
-  function injectReplyPanelButton() {
-    const replyBtn = document.querySelector('[jsname="hrGhad"]');
-    if (!replyBtn) return;
-    const container = replyBtn.closest('.FkJOzc');
-    if (!container || container.querySelector('.ranksniper-btn')) return;
+  function injectButtons() {
+    // Cancel button (jsname="gQ2Xie") appears when reply box is open
+    const cancelBtns = [...document.querySelectorAll('button[jsname="gQ2Xie"]')];
+    console.log('[RankSniper] business.google.com — found', cancelBtns.length, 'open reply boxes');
 
-    const article = document.querySelector('article[aria-label="Review"]');
-    const reviewText = article ? article.innerText.trim() : '';
-    const reviewerEl = document.querySelector('.hJNnEe, .Uqj3Wb, [data-review-id] .d4r55');
-    const reviewerName = reviewerEl ? reviewerEl.innerText.trim().split('\n')[0] : 'Customer';
-    const starsEl = document.querySelector('[aria-label*="out of 5"]');
-    const rating = starsEl ? parseFloat(starsEl.getAttribute('aria-label').match(/[\d.]+/)?.[0] || '5') : 5;
+    cancelBtns.forEach((cancelBtn) => {
+      if (cancelBtn.nextElementSibling?.classList.contains('ranksniper-btn')) return;
 
-    const reviewData = { reviewerName, rating, reviewText };
+      const reviewContainer = cancelBtn.closest('li, [data-review-id], .k6DwOf, .oFvkI') || cancelBtn.parentElement?.parentElement?.parentElement;
+      const reviewTextEl = reviewContainer?.querySelector('.OA1nbd, .Jtu6fd, .wiI7pd, [jsname="fbQN7e"]');
+      const reviewText = reviewTextEl ? reviewTextEl.innerText.trim() : '';
+      const nameEl = reviewContainer?.querySelector('.TSUbDb, .d4r55, .sCuL2, [jsname="gp20Tb"]');
+      const reviewerName = nameEl ? nameEl.innerText.trim().split('\n')[0] : 'Customer';
+      const starsEl = reviewContainer?.querySelector('[aria-label*="out of"], [aria-label*="star"]');
+      const rating = starsEl ? parseFloat(starsEl.getAttribute('aria-label').match(/[\d.]+/)?.[0] || '5') : 5;
 
-    const btn = document.createElement('button');
-    btn.className = 'ranksniper-btn';
-    btn.textContent = 'Draft AI Response';
-    btn.style.cssText = 'margin-right:8px;';
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      const panel = container.closest('section, .X73iid') || document.body;
-      await handleDraftClick(btn, reviewData, panel);
+      const reviewData = { reviewerName, rating, reviewText };
+
+      const btn = document.createElement('button');
+      btn.className = 'ranksniper-btn';
+      btn.textContent = 'Draft AI Response';
+      btn.style.marginLeft = '8px';
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        await handleDraftClick(btn, reviewData, reviewContainer || cancelBtn.parentElement);
+      });
+
+      cancelBtn.insertAdjacentElement('afterend', btn);
+      console.log('[RankSniper] Injected next to Cancel for:', reviewerName || 'Customer');
     });
 
-    container.insertBefore(btn, replyBtn);
-  }
-
-  function injectButtons() {
-    const url = window.location.href;
-    const isSearch = url.includes('google.com/search');
-    const isBusiness = url.includes('business.google.com');
-    const reviews = isSearch ? getSearchReviews() : isBusiness ? getReviewsFromPageData() : [];
-    const cards = [...document.querySelectorAll(isSearch ? '.bwb7ce' : 'div.OUCuxb')];
-
-    cards.forEach((card, i) => {
+    // Fallback: old-style OUCuxb cards
+    const reviews = getReviewsFromPageData();
+    const oldCards = [...document.querySelectorAll('div.OUCuxb')];
+    oldCards.forEach((card, i) => {
       if (card.querySelector('.ranksniper-btn')) return;
       const reviewData = reviews[i] || reviews[0];
       if (!reviewData || !reviewData.reviewText) return;
@@ -394,26 +361,9 @@
       btn.className = 'ranksniper-btn';
       btn.textContent = 'Draft AI Response';
       btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, card); });
-      if (isSearch) {
-        const replyBtn = card.querySelector('.F87tLd');
-        if (replyBtn) {
-          replyBtn.insertAdjacentElement('afterend', btn);
-          const parent = replyBtn.parentElement;
-          if (parent) {
-            parent.style.display = 'flex';
-            parent.style.alignItems = 'center';
-            parent.style.gap = '8px';
-          }
-        } else {
-          const actionRow = card.querySelector('.dwrWYe');
-          if (actionRow) actionRow.appendChild(btn);
-          else card.appendChild(btn);
-        }
-      } else {
-        const row = card.querySelector('div.lGXsGc');
-        if (row) row.appendChild(btn);
-        else card.appendChild(btn);
-      }
+      const row = card.querySelector('div.lGXsGc');
+      if (row) row.appendChild(btn);
+      else card.appendChild(btn);
     });
   }
 
@@ -422,22 +372,15 @@
     const hasNewNodes = mutations.some(m => m.addedNodes.length > 0);
     if (!hasNewNodes) return;
     clearTimeout(t);
-    t = setTimeout(() => {
-      injectButtons();
-      injectReplyPanelButton();
-      const cancelBtn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Cancel');
-      const btn = document.querySelector('.ranksniper-btn');
-      if (cancelBtn && btn && btn.parentElement !== cancelBtn.parentElement) {
-        cancelBtn.insertAdjacentElement('afterend', btn);
-      }
-    }, 500);
+    t = setTimeout(injectButtons, 500);
   }).observe(document.body, { subtree: true, childList: true });
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.5 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
-    setTimeout(injectButtons, 2000);
-    setTimeout(injectButtons, 4000);
+    console.log('[RankSniper] v1.9 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
+    setTimeout(injectButtons, 1500);
+    setTimeout(injectButtons, 3000);
+    setTimeout(injectButtons, 6000);
   }
 
   document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
