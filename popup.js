@@ -50,13 +50,13 @@ async function callGeminiPopup(reviewData, instruction, previousResponse) {
       ? 'Mixed review. Thank them for the honest feedback. Acknowledge what missed the mark specifically. Keep it genuine and brief.'
       : 'Positive review. Thank them warmly and reference something specific they mentioned. Keep it short and real.';
     const kwPrompt = keywords ? ' Naturally include 2 to 3 of these keywords where they fit — do not force all of them, only use ones that sound natural in context: ' + keywords + '.' : '';
-    prompt = 'Write a Google review response for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + ',". ' + g + kwPrompt + ' Rules: 60 to 120 words. No dashes of any kind. No corporate filler phrases. Do not use: thrilled, delighted, excited, wonderful, amazing, fantastic, cherished, means the world, we look forward, we hope to see you, thank you for sharing, thank you for taking the time, at your earliest convenience, do not hesitate. Sound like a real human business owner, warm but direct.' + custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response, nothing else.';
+    prompt = 'Write a Google review response for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + ',". ' + g + kwPrompt + ' Rules: 60 to 120 words. You MUST mention the business name (' + biz + ') AND the city (' + city + ') naturally somewhere in the response — this is required. No dashes of any kind. No corporate filler phrases. Do not use: thrilled, delighted, excited, wonderful, amazing, fantastic, cherished, means the world, we look forward, we hope to see you, thank you for sharing, thank you for taking the time, at your earliest convenience, do not hesitate. Sound like a real human business owner, warm but direct.' + custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response, nothing else.';
   }
 
   const res = await fetch(GEMINI_URL + '?key=' + apiKey, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 200, temperature: 0.7 } })
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 350, temperature: 0.7 } })
   });
   if (!res.ok) { const err = await res.json(); throw new Error(err?.error?.message || 'Gemini API error'); }
   const data = await res.json();
