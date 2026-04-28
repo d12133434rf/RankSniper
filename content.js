@@ -143,7 +143,9 @@
     const rawFirst = reviewData.reviewerName.split(' ')[0];
     const firstName = rawFirst.length === 1 ? 'there' : rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase();
     const custom = p.customInstructions ? '\nAdditional instructions: ' + p.customInstructions : '';
-    const keywords = p.keywords || p.services || '';
+    // Replace [City] placeholder in keywords with actual city
+    const rawKeywords = p.keywords || p.services || '';
+    const keywords = rawKeywords.replace(/\[City\]/gi, city).trim();
 
     let prompt;
     if (instruction && previousResponse) {
@@ -187,10 +189,41 @@
     finally { btn.disabled = false; btn.textContent = 'Draft AI Response'; }
   }
 
-  function pasteIntoTextarea(text) {
-    navigator.clipboard.writeText(text).then(() => {
-      showNotice('Copied! Click the reply box and press Ctrl+V to paste.', 'info');
-    });
+  async function pasteIntoReplyBox(text) {
+    // Find the reply textarea — confirmed selector: textarea[jsname="YPqjbf"]
+    let textarea = document.querySelector('textarea[jsname="YPqjbf"]');
+
+    if (!textarea) {
+      // Reply box not open yet — click Reply button to open it first
+      const replyBtn = document.querySelector('button[jsname="rhPddf"]');
+      if (replyBtn) {
+        replyBtn.click();
+        // Wait for textarea to appear
+        await new Promise(resolve => setTimeout(resolve, 800));
+        textarea = document.querySelector('textarea[jsname="YPqjbf"]');
+      }
+    }
+
+    if (textarea) {
+      textarea.focus();
+      // Use execCommand to set value so Google's JS registers it
+      textarea.value = '';
+      textarea.dispatchEvent(new Event('focus'));
+      document.execCommand('insertText', false, text);
+      // Fallback if execCommand didn't work
+      if (!textarea.value) {
+        textarea.value = text;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        textarea.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      showNotice('Response pasted! Click Post reply to publish.', 'info');
+    } else {
+      // Fallback to clipboard
+      navigator.clipboard.writeText(text).then(() => {
+        showNotice('Copied! Click Reply then paste with Ctrl+V.', 'info');
+      });
+    }
   }
 
   function showPanel(card, responseText, reviewData) {
@@ -255,13 +288,12 @@
       setTimeout(() => b.textContent = 'Copy', 2000);
     });
 
-    panel.querySelector('.rs-paste-btn').addEventListener('click', () => {
+    panel.querySelector('.rs-paste-btn').addEventListener('click', async () => {
       const text = panel.querySelector('.rs-response-text').value;
       const currentScore = scoreResponse(text, businessProfile);
       saveToHistory(reviewData.reviewerName, reviewData.rating, reviewData.reviewText, text, currentScore);
-      const rb = card.querySelector('.F87tLd') || card.querySelector('div.lGXsGc button') || card.querySelector('button[aria-label*="Reply"]');
-      if (rb) rb.click();
-      setTimeout(() => pasteIntoTextarea(text), 1000);
+      panel.remove();
+      await pasteIntoReplyBox(text);
     });
 
     panel.querySelector('.rs-regen-btn').addEventListener('click', async () => {
