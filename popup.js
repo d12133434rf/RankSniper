@@ -20,8 +20,7 @@ const SEO_KEYWORDS = {
 // ── Gemini API call (used by manual draft tab) ───────────────────────────────
 async function callGeminiPopup(reviewData, instruction, previousResponse) {
   const result = await new Promise(resolve => chrome.storage.local.get(['geminiApiKey', 'ranksniperProfile'], resolve));
-  const apiKey = result.geminiApiKey;
-  if (!apiKey) throw new Error('No Gemini API key. Add it in the Profile tab.');
+  const apiKey = result.geminiApiKey || '';
   const p = result.ranksniperProfile || {};
   const biz = p.businessName || 'Our Business';
   const city = p.city || 'our city';
@@ -30,7 +29,9 @@ async function callGeminiPopup(reviewData, instruction, previousResponse) {
   const rawFirst = (reviewData.reviewerName || 'Customer').split(' ')[0];
   const firstName = rawFirst.length === 1 ? 'there' : rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase();
   const custom = p.customInstructions ? '\nAdditional instructions: ' + p.customInstructions : '';
-  const keywords = p.keywords || p.services || '';
+  // Replace [City] placeholder with actual city value
+  const rawKeywords = p.keywords || p.services || '';
+  const keywords = rawKeywords.replace(/\[City\]/gi, city).trim();
 
   let prompt;
   if (instruction && previousResponse) {
