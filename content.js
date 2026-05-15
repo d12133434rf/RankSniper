@@ -131,7 +131,7 @@
   }
 
   async function callGemini(reviewData, instruction, previousResponse) {
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=AIzaSyDRd1WkIWMw03uaKA5ZWev9q2UOpY1SG0g';
+    const url = BACKEND + '/api/generate';
     const p = businessProfile || {};
     const biz = p.businessName || 'Our Business';
     const city = p.city || 'our city';
@@ -167,10 +167,14 @@
         custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response, nothing else.';
     }
 
-        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 200, temperature: 0.7 } }) });
-    if (!res.ok) { const err = await res.json(); throw new Error(err?.error?.message || 'Gemini API error'); }
+        const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + rsToken },
+      body: JSON.stringify({ prompt })
+    });
+    if (!res.ok) { const err = await res.json(); throw new Error(err?.error || 'Generation failed'); }
     const data = await res.json();
-    let output = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Could not generate response.';
+    let output = data.text || 'Could not generate response.';
     output = output.replace(/\bthrilled\b/gi, 'happy');
     output = output.replace(/\bdelighted\b/gi, 'glad');
     output = output.replace(/\bwonderful\b/gi, 'great');
