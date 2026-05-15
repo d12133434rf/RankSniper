@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RankSniper - Google Review AI Responder",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Respond to Google Business reviews with SEO-optimized AI responses in one click. Rank higher on Google Maps.",
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
