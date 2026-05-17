@@ -1,5 +1,4 @@
 const API = 'https://ranksniperweb-production.up.railway.app';
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
 
 const SEO_KEYWORDS = {
   'restaurant': ['best restaurant in [City]', 'fresh ingredients', 'online ordering', 'family restaurant in [City]', 'lunch and dinner in [City]', 'takeout and delivery', 'casual dining in [City]', 'best food in [City]', 'neighborhood restaurant in [City]', 'affordable dining in [City]', 'local favorite in [City]', 'dine in restaurant [City]'],
@@ -19,9 +18,9 @@ const SEO_KEYWORDS = {
 
 // ── Gemini API call (used by manual draft tab) ───────────────────────────────
 async function callGeminiPopup(reviewData, instruction, previousResponse) {
-  const result = await new Promise(resolve => chrome.storage.local.get(['geminiApiKey', 'ranksniperProfile'], resolve));
-  const apiKey = result.geminiApiKey || '';
-  const p = result.ranksniperProfile || {};
+  const tokenResult = await new Promise(resolve => chrome.storage.local.get(['rsToken', 'ranksniperProfile'], resolve));
+  const rsToken = tokenResult.rsToken;
+  const p = tokenResult.ranksniperProfile || {};
   const biz = p.businessName || 'Our Business';
   const city = p.city || 'our city';
   const type = p.businessType || 'local business';
@@ -37,19 +36,33 @@ async function callGeminiPopup(reviewData, instruction, previousResponse) {
   if (instruction && previousResponse) {
     prompt = 'You wrote this response to a Google review for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants you to change it: "' + instruction + '"\n\nRewrite the response keeping it natural and human. Start with "Hi ' + firstName + ',". Under 150 words. Never use em dashes, hyphens, or any kind of dash. Never use the word thrilled, delighted, or excited. Include city (' + city + ') and business name (' + biz + ') naturally.' + custom + '\n\nWrite only the new response, nothing else.';
   } else {
-    const g = reviewData.rating <= 2 ? 'Negative review: apologize sincerely and explain improvements.' : reviewData.rating === 3 ? 'Mixed review: thank them and acknowledge issues.' : 'Positive review: thank them warmly.';
-    const kwPrompt = keywords ? ' Naturally weave 3 to 4 of these keywords into the response where they fit — spread them out, do not list them all in one sentence: ' + keywords + '.' : '';
-    prompt = 'Respond to this Google review for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '. Start with "Hi ' + firstName + ',". ' + g + ' Include city and business name.' + kwPrompt + ' Under 150 words. Write like a real business owner. Never use em dashes, hyphens, or any kind of dash. Never use the words thrilled, delighted, excited, wonderful, amazing, fantastic, appreciate, valued, cherished, or means the world. Never start with "Thank you for sharing" or "Thank you for taking the time". Never use corporate filler. Keep it short, warm, and real.' + custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response, nothing else.';
+    const sentimentPrompt = reviewData.rating <= 2
+      ? 'This is a negative review. Read what they actually wrote and reference something specific from it — do not give a generic apology. Acknowledge what went wrong in plain human language. One sentence on what you are doing about it using simple everyday words, not corporate speak. End with a short genuine invite back. Do NOT use: we sincerely apologize, we are so sorry, training protocols, standard of care, quality checks, we strive to, we are committed to, we take pride, rest assured, implementing, we are reviewing, we are addressing.'
+      : reviewData.rating === 3
+      ? 'This is a mixed review. Acknowledge what they liked and what missed without being generic. Be specific to what they actually said. Sound genuine and direct.'
+      : 'This is a positive review. Thank them warmly and reference something specific they mentioned. Keep it brief and real, not over the top.';
+
+    const kwPrompt = keywords
+      ? ' Include 1 keyword only if it sounds completely natural in context, do not force it: ' + keywords + '.'
+      : '';
+
+    prompt = 'Write a Google review response for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '.\n\n' +
+      'Start with "Hi ' + firstName + ',".\n\n' +
+      sentimentPrompt + '\n\n' +
+      'You MUST naturally mention all three of these once each somewhere in the response: the business name (' + biz + '), the city (' + city + '), and the main service or business type (' + type + '). Weave them in naturally, do not list them.\n' +
+      kwPrompt + '\n\n' +
+      'Rules: 60 to 100 words. No dashes of any kind. Use contractions. Sound like the real owner typed this on their phone, not a press release. Do not use: thrilled, delighted, excited, wonderful, amazing, fantastic, cherished, mortified, absolutely, sincerely, means the world, we look forward, we hope to see you, thank you for sharing, thank you for taking the time, at your earliest convenience, do not hesitate, we are committed, it is our goal, we take pride, we pride ourselves, we strive to, rest assured, standard of care, training protocols, quality checks, implementing.' +
+      custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response, nothing else.';
   }
 
-  const res = await fetch(GEMINI_URL + '?key=' + apiKey, {
+  const res = await fetch(API + '/api/generate', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 200, temperature: 0.7 } })
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + rsToken },
+    body: JSON.stringify({ prompt })
   });
-  if (!res.ok) { const err = await res.json(); throw new Error(err?.error?.message || 'Gemini API error'); }
+  if (!res.ok) { const err = await res.json(); throw new Error(err?.error || 'Generation failed'); }
   const data = await res.json();
-  let output = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Could not generate response.';
+  let output = data.text || 'Could not generate response.';
   output = output.replace(/\bthrilled\b/gi, 'happy').replace(/\bdelighted\b/gi, 'glad').replace(/\bwonderful\b/gi, 'great').replace(/\bfantastic\b/gi, 'great').replace(/\bamazing\b/gi, 'great').replace(/ - /g, ' ').replace(/—/g, '');
   return output;
 }
