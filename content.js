@@ -302,21 +302,50 @@
   }
 
   async function pasteIntoReplyBox(text, card) {
-    // Find the reply textarea WITHIN this specific card so we don't paste into the wrong review
-    let textarea = card?.querySelector('textarea[jsname="YPqjbf"]');
+    // Find the Reply button INSIDE this specific card so we know which review we are pasting for
+    let textarea = null;
 
-    if (!textarea && card) {
-      // Reply box not open yet for THIS review — click its Reply button
-      const replyBtn = card.querySelector('button[jsname="rhPddf"]');
+    // First check if reply box is already open for this card by walking outward and looking nearby
+    function findTextareaNear(el) {
+      if (!el) return null;
+      // Try inside the card first
+      let ta = el.querySelector('textarea[jsname="YPqjbf"]');
+      if (ta) return ta;
+      // Walk up looking for a textarea that's a sibling/cousin within the same review block
+      let parent = el.parentElement;
+      for (let i = 0; i < 6 && parent; i++) {
+        ta = parent.querySelector('textarea[jsname="YPqjbf"]');
+        if (ta) return ta;
+        parent = parent.parentElement;
+      }
+      return null;
+    }
+
+    textarea = findTextareaNear(card);
+
+    if (!textarea) {
+      // Reply box not open — click Reply button for THIS card
+      const replyBtn = card?.querySelector('button[jsname="rhPddf"]')
+        || (function() {
+            // Walk up and find the closest reply button
+            let p = card?.parentElement;
+            for (let i = 0; i < 6 && p; i++) {
+              const b = p.querySelector('button[jsname="rhPddf"]');
+              if (b) return b;
+              p = p.parentElement;
+            }
+            return null;
+          })();
+
       if (replyBtn) {
         replyBtn.click();
         await new Promise(resolve => setTimeout(resolve, 800));
-        textarea = card.querySelector('textarea[jsname="YPqjbf"]');
+        textarea = findTextareaNear(card);
       }
     }
 
-    // Final fallback only if we had no card scope at all
-    if (!textarea && !card) {
+    // Final fallback — page-wide search
+    if (!textarea) {
       textarea = document.querySelector('textarea[jsname="YPqjbf"]');
     }
 
