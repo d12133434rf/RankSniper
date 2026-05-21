@@ -302,24 +302,48 @@
   }
 
   async function pasteIntoReplyBox(text, card) {
-    if (!card) {
-      // No card — fall back to clipboard
-      navigator.clipboard.writeText(text).then(() => {
-        showNotice('Copied! Click Reply then paste with Ctrl+V.', 'info');
-      });
-      return;
+    // Strategy: find ALL textareas on the page, then pick the one closest to our card
+    // by comparing DOM position. This handles cases where the textarea is in a sibling
+    // container or moved around by Google's React rendering.
+
+    async function getAllTextareas() {
+      return [...document.querySelectorAll('textarea[jsname="YPqjbf"]')];
     }
 
-    // STRICT: only look INSIDE this specific review card. Never walk up the DOM.
-    let textarea = card.querySelector('textarea[jsname="YPqjbf"]');
+    function closestToCard(textareas, cardEl) {
+      if (!textareas.length) return null;
+      if (textareas.length === 1) return textareas[0];
+      if (!cardEl) return textareas[0];
+
+      // Pick the textarea whose position is closest to the card's position
+      const cardRect = cardEl.getBoundingClientRect();
+      const cardY = cardRect.top + cardRect.height / 2;
+
+      let best = textareas[0];
+      let bestDist = Infinity;
+      for (const ta of textareas) {
+        const r = ta.getBoundingClientRect();
+        const taY = r.top + r.height / 2;
+        const dist = Math.abs(taY - cardY);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = ta;
+        }
+      }
+      return best;
+    }
+
+    let textareas = await getAllTextareas();
+    let textarea = closestToCard(textareas, card);
 
     if (!textarea) {
-      // Reply box not open for this review — click the Reply button INSIDE this card
-      const replyBtn = card.querySelector('button[jsname="rhPddf"]');
+      // No reply boxes open anywhere — find THIS card's Reply button and click it
+      const replyBtn = card?.querySelector('button[jsname="rhPddf"]');
       if (replyBtn) {
         replyBtn.click();
         await new Promise(resolve => setTimeout(resolve, 800));
-        textarea = card.querySelector('textarea[jsname="YPqjbf"]');
+        textareas = await getAllTextareas();
+        textarea = closestToCard(textareas, card);
       }
     }
 
