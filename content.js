@@ -302,51 +302,25 @@
   }
 
   async function pasteIntoReplyBox(text, card) {
-    // Find the Reply button INSIDE this specific card so we know which review we are pasting for
-    let textarea = null;
-
-    // First check if reply box is already open for this card by walking outward and looking nearby
-    function findTextareaNear(el) {
-      if (!el) return null;
-      // Try inside the card first
-      let ta = el.querySelector('textarea[jsname="YPqjbf"]');
-      if (ta) return ta;
-      // Walk up looking for a textarea that's a sibling/cousin within the same review block
-      let parent = el.parentElement;
-      for (let i = 0; i < 6 && parent; i++) {
-        ta = parent.querySelector('textarea[jsname="YPqjbf"]');
-        if (ta) return ta;
-        parent = parent.parentElement;
-      }
-      return null;
+    if (!card) {
+      // No card — fall back to clipboard
+      navigator.clipboard.writeText(text).then(() => {
+        showNotice('Copied! Click Reply then paste with Ctrl+V.', 'info');
+      });
+      return;
     }
 
-    textarea = findTextareaNear(card);
+    // STRICT: only look INSIDE this specific review card. Never walk up the DOM.
+    let textarea = card.querySelector('textarea[jsname="YPqjbf"]');
 
     if (!textarea) {
-      // Reply box not open — click Reply button for THIS card
-      const replyBtn = card?.querySelector('button[jsname="rhPddf"]')
-        || (function() {
-            // Walk up and find the closest reply button
-            let p = card?.parentElement;
-            for (let i = 0; i < 6 && p; i++) {
-              const b = p.querySelector('button[jsname="rhPddf"]');
-              if (b) return b;
-              p = p.parentElement;
-            }
-            return null;
-          })();
-
+      // Reply box not open for this review — click the Reply button INSIDE this card
+      const replyBtn = card.querySelector('button[jsname="rhPddf"]');
       if (replyBtn) {
         replyBtn.click();
         await new Promise(resolve => setTimeout(resolve, 800));
-        textarea = findTextareaNear(card);
+        textarea = card.querySelector('textarea[jsname="YPqjbf"]');
       }
-    }
-
-    // Final fallback — page-wide search
-    if (!textarea) {
-      textarea = document.querySelector('textarea[jsname="YPqjbf"]');
     }
 
     if (textarea) {
