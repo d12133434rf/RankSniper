@@ -302,36 +302,35 @@
   }
 
   async function pasteIntoReplyBox(text, card, draftBtn) {
-    // Each review is inside its own div.OUCuxb container.
-    // The Draft button is inside the same OUCuxb as its review.
-    // So the textarea, when open for THIS review, will also be inside the same OUCuxb.
+    // Two cases:
+    // CASE A: draftBtn was injected next to Cancel (reply already open for this review)
+    //   → textarea is in the same SiZwV/reply section. Find it via the cancel button's siblings.
+    // CASE B: draftBtn was injected via OUCuxb fallback (reply closed for this review)
+    //   → click the stored Reply button to open this review's reply box.
 
-    const reviewCard = draftBtn?.closest('div.OUCuxb') || card?.closest?.('div.OUCuxb') || card;
-    if (!reviewCard) {
-      navigator.clipboard.writeText(text).then(() => {
-        showNotice('Copied! Click Reply then paste with Ctrl+V.', 'info');
-      });
-      return;
+    let textarea = null;
+
+    if (draftBtn?._rsIsCurrentlyOpen && draftBtn._rsCancelBtn) {
+      console.log('[RankSniper] Reply box currently open for this review, finding adjacent textarea');
+      // Walk up from cancel button to find the reply section, then find textarea inside
+      let el = draftBtn._rsCancelBtn.parentElement;
+      for (let i = 0; i < 8 && el && !textarea; i++) {
+        textarea = el.querySelector('textarea[jsname="YPqjbf"]');
+        if (textarea) break;
+        el = el.parentElement;
+      }
     }
 
-    console.log('[RankSniper] Pasting into card at y=' + Math.round(reviewCard.getBoundingClientRect().top));
-
-    // Look for textarea ONLY inside this review's OUCuxb container
-    let textarea = reviewCard.querySelector('textarea[jsname="YPqjbf"]');
+    if (!textarea && draftBtn?._rsReplyBtn) {
+      console.log('[RankSniper] Clicking stored Reply button for this review');
+      draftBtn._rsReplyBtn.click();
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      // After clicking, only one textarea will be open — find it
+      textarea = document.querySelector('textarea[jsname="YPqjbf"]');
+    }
 
     if (!textarea) {
-      // Reply box is not open for this review. Click the Reply button INSIDE this card.
-      // Google will auto-close any other open reply box first.
-      const replyBtn = reviewCard.querySelector('button[jsname="rhPddf"]');
-      if (replyBtn) {
-        console.log('[RankSniper] Clicking Reply button for this review');
-        replyBtn.click();
-        // Wait for Google to close other reply box and open this one
-        await new Promise(resolve => setTimeout(resolve, 1200));
-        textarea = reviewCard.querySelector('textarea[jsname="YPqjbf"]');
-      } else {
-        console.log('[RankSniper] No Reply button found in this card');
-      }
+      console.log('[RankSniper] Could not locate textarea, falling back to clipboard');
     }
 
     if (textarea) {
@@ -506,6 +505,10 @@
       btn.className = 'ranksniper-btn';
       btn.textContent = 'Draft AI Response';
       btn.style.marginLeft = '8px';
+      // This button was injected because reply box is CURRENTLY OPEN for this review.
+      // The cancel button is right next to us, and the textarea is in the same reply section.
+      btn._rsCancelBtn = cancelBtn;
+      btn._rsIsCurrentlyOpen = true;
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         e.preventDefault();
@@ -526,6 +529,9 @@
       const btn = document.createElement('button');
       btn.className = 'ranksniper-btn';
       btn.textContent = 'Draft AI Response';
+      // Store this card's Reply button on the draft btn so we can find it later
+      btn._rsReplyBtn = card.querySelector('button[jsname="rhPddf"]');
+      btn._rsCard = card;
       btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, card); });
       const row = card.querySelector('div.lGXsGc');
       if (row) row.appendChild(btn);
@@ -543,7 +549,7 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.16 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
+    console.log('[RankSniper] v1.17 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
     setTimeout(injectButtons, 1500);
     setTimeout(injectButtons, 3000);
     setTimeout(injectButtons, 6000);
