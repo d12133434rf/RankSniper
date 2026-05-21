@@ -302,31 +302,58 @@
   }
 
   async function pasteIntoReplyBox(text, card, draftBtn) {
-    // Two cases:
-    // CASE A: draftBtn was injected next to Cancel (reply already open for this review)
-    //   → textarea is in the same SiZwV/reply section. Find it via the cancel button's siblings.
-    // CASE B: draftBtn was injected via OUCuxb fallback (reply closed for this review)
-    //   → click the stored Reply button to open this review's reply box.
+    // Wait helper: poll until a textarea exists that's positioned near our draft button.
+    // This handles the race where Google is mid-transition between two open reply boxes.
+    async function waitForOurTextarea(maxMs) {
+      const start = Date.now();
+      const btnY = draftBtn ? draftBtn.getBoundingClientRect().top : 0;
+      while (Date.now() - start < maxMs) {
+        const tas = [...document.querySelectorAll('textarea[jsname="YPqjbf"]')];
+        // Find a textarea that's ABOVE our draft button and within 500px
+        // (the reply box opens between the review text and the button row)
+        for (const ta of tas) {
+          const taY = ta.getBoundingClientRect().top;
+          const diff = btnY - taY;
+          if (diff > 0 && diff < 500) return ta;
+        }
+        await new Promise(r => setTimeout(r, 100));
+      }
+      return null;
+    }
 
     let textarea = null;
 
     if (draftBtn?._rsIsCurrentlyOpen && draftBtn._rsCancelBtn) {
-      console.log('[RankSniper] Reply box currently open for this review, finding adjacent textarea');
-      // Walk up from cancel button to find the reply section, then find textarea inside
+      console.log('[RankSniper] Reply box currently open for this review');
+      // Walk up from cancel button to find the textarea
       let el = draftBtn._rsCancelBtn.parentElement;
       for (let i = 0; i < 8 && el && !textarea; i++) {
         textarea = el.querySelector('textarea[jsname="YPqjbf"]');
         if (textarea) break;
         el = el.parentElement;
       }
+      // Verify it's actually near our button (sanity check for multi-review pages)
+      if (textarea && draftBtn) {
+        const taY = textarea.getBoundingClientRect().top;
+        const btnY = draftBtn.getBoundingClientRect().top;
+        const diff = btnY - taY;
+        if (diff <= 0 || diff > 500) {
+          console.log('[RankSniper] Textarea found is not near our button, will reopen');
+          textarea = null;
+        }
+      }
     }
 
     if (!textarea && draftBtn?._rsReplyBtn) {
       console.log('[RankSniper] Clicking stored Reply button for this review');
       draftBtn._rsReplyBtn.click();
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      // After clicking, only one textarea will be open — find it
-      textarea = document.querySelector('textarea[jsname="YPqjbf"]');
+      // Wait for OUR textarea to appear (verified by position relative to our button)
+      textarea = await waitForOurTextarea(2500);
+    }
+
+    if (!textarea && draftBtn?._rsCancelBtn) {
+      // Edge case: cancel was set but textarea wasn't found above. Try waiting for it.
+      textarea = await waitForOurTextarea(1500);
     }
 
     if (!textarea) {
@@ -549,7 +576,7 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.17 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
+    console.log('[RankSniper] v1.18 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
     setTimeout(injectButtons, 1500);
     setTimeout(injectButtons, 3000);
     setTimeout(injectButtons, 6000);
