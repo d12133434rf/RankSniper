@@ -72,11 +72,11 @@
     const lower = text.toLowerCase();
     const words = text.split(/\s+/).filter(Boolean).length;
 
-    // === LENGTH (max 12 points) ===
-    if (words >= 60 && words <= 100) score += 12;
-    else if (words >= 50 && words <= 120) score += 9;
-    else if (words >= 40 && words <= 140) score += 5;
-    else if (words < 30 || words > 160) score -= 8;
+    // === LENGTH (max 12 points) — wider range since responses scale with review length ===
+    if (words >= 60 && words <= 220) score += 12;
+    else if (words >= 50 && words <= 250) score += 9;
+    else if (words >= 40 && words <= 280) score += 5;
+    else if (words < 30) score -= 8;
 
     // === GREETING (max 5 points) ===
     // Any personalized "Hi [name]" or even "Hi there" counts since it's still polite
@@ -227,16 +227,35 @@
         ? ' Include 1 keyword only if it sounds completely natural in context, do not force it: ' + keywords + '.'
         : '';
 
+      // Scale response length to review length so detailed reviews get detailed responses
+      const reviewWordCount = reviewData.reviewText.split(/\s+/).filter(Boolean).length;
+      let lengthRule;
+      let detailRule;
+      if (reviewWordCount < 25) {
+        lengthRule = '60 to 90 words';
+        detailRule = 'Reference the specific thing they mentioned.';
+      } else if (reviewWordCount < 60) {
+        lengthRule = '80 to 120 words';
+        detailRule = 'Address each specific issue or compliment they mentioned by name.';
+      } else if (reviewWordCount < 120) {
+        lengthRule = '120 to 170 words';
+        detailRule = 'Address EVERY specific point they raised (each complaint or compliment must get its own sentence acknowledging it directly). Do not lump multiple issues into one vague sentence.';
+      } else {
+        lengthRule = '160 to 220 words';
+        detailRule = 'Address EVERY specific point they raised individually (each complaint or compliment must get its own sentence). For long detailed reviews, the response must match that depth. Do not lump multiple issues together with vague phrases.';
+      }
+
       prompt = 'You are the owner of ' + biz + ', a ' + type + ' in ' + city + '. Respond to this Google review.\n\n' +
-        'Review (' + reviewData.rating + '/5 stars): "' + reviewData.reviewText + '"\n\n' +
+        'Review (' + reviewData.rating + '/5 stars, ' + reviewWordCount + ' words): "' + reviewData.reviewText + '"\n\n' +
         'HARD REQUIREMENTS:\n' +
         '- Start with: Hi ' + firstName + ',\n' +
-        '- Length: 65 to 95 words\n' +
+        '- Length: ' + lengthRule + '\n' +
+        '- ' + detailRule + '\n' +
         '- Mention the business name (' + biz + ') exactly once, naturally in a sentence\n' +
         '- Mention the city (' + city + ') exactly once, naturally in a sentence\n' +
-        '- Reference one specific detail the customer actually mentioned in their review\n' +
         '- Use contractions (we\'re, don\'t, it\'s)\n' +
-        '- Sound like a real business owner wrote it in 30 seconds, not a PR firm\n\n' +
+        '- Sound like a real business owner wrote it, not a PR firm\n' +
+        '- The response should feel proportional to the review — longer reviews deserve longer, more thorough responses\n\n' +
         sentimentPrompt + '\n' +
         kwPrompt + '\n\n' +
         'BANNED WORDS AND PHRASES (do not use any of these): thrilled, delighted, excited, wonderful, amazing, fantastic, cherished, mortified, absolutely, sincerely, means the world, we look forward, we hope to see you, thank you for sharing, thank you for taking the time, at your earliest convenience, do not hesitate, we are committed, it is our goal, we take pride, we pride ourselves, we strive to, rest assured, standard of care, training protocols, quality checks, implementing, reviews like yours, valued customer, esteemed, utmost.\n\n' +
@@ -282,19 +301,23 @@
     finally { btn.disabled = false; btn.textContent = 'Draft AI Response'; }
   }
 
-  async function pasteIntoReplyBox(text) {
-    // Find the reply textarea — confirmed selector: textarea[jsname="YPqjbf"]
-    let textarea = document.querySelector('textarea[jsname="YPqjbf"]');
+  async function pasteIntoReplyBox(text, card) {
+    // Find the reply textarea WITHIN this specific card so we don't paste into the wrong review
+    let textarea = card?.querySelector('textarea[jsname="YPqjbf"]');
 
-    if (!textarea) {
-      // Reply box not open yet — click Reply button to open it first
-      const replyBtn = document.querySelector('button[jsname="rhPddf"]');
+    if (!textarea && card) {
+      // Reply box not open yet for THIS review — click its Reply button
+      const replyBtn = card.querySelector('button[jsname="rhPddf"]');
       if (replyBtn) {
         replyBtn.click();
-        // Wait for textarea to appear
         await new Promise(resolve => setTimeout(resolve, 800));
-        textarea = document.querySelector('textarea[jsname="YPqjbf"]');
+        textarea = card.querySelector('textarea[jsname="YPqjbf"]');
       }
+    }
+
+    // Final fallback only if we had no card scope at all
+    if (!textarea && !card) {
+      textarea = document.querySelector('textarea[jsname="YPqjbf"]');
     }
 
     if (textarea) {
@@ -386,7 +409,7 @@
       const currentScore = scoreResponse(text, businessProfile);
       saveToHistory(reviewData.reviewerName, reviewData.rating, reviewData.reviewText, text, currentScore);
       panel.remove();
-      await pasteIntoReplyBox(text);
+      await pasteIntoReplyBox(text, card);
     });
 
     panel.querySelector('.rs-regen-btn').addEventListener('click', async () => {
