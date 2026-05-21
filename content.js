@@ -302,51 +302,35 @@
   }
 
   async function pasteIntoReplyBox(text, card, draftBtn) {
-    // Google only allows ONE reply box open at a time on the whole page.
-    // So we ALWAYS need to find this review's Reply button and click it to ensure
-    // the correct reply box is the one currently open.
+    // Each review is inside its own div.OUCuxb container.
+    // The Draft button is inside the same OUCuxb as its review.
+    // So the textarea, when open for THIS review, will also be inside the same OUCuxb.
 
-    // Step 1: Find this review's Reply button. It's a sibling of the Draft AI button
-    // (we injected Draft right next to the Cancel button which replaces Reply when open).
-    // If reply is currently closed for this review, the Reply button is in the same row.
-    function findReplyBtn() {
-      // Look near the Draft button first
-      if (draftBtn) {
-        let el = draftBtn.parentElement;
-        for (let i = 0; i < 6 && el; i++) {
-          const r = el.querySelector('button[jsname="rhPddf"]');
-          if (r) return r;
-          el = el.parentElement;
-        }
-      }
-      // Fallback: look in the card
-      return card?.querySelector('button[jsname="rhPddf"]') || null;
+    const reviewCard = draftBtn?.closest('div.OUCuxb') || card?.closest?.('div.OUCuxb') || card;
+    if (!reviewCard) {
+      navigator.clipboard.writeText(text).then(() => {
+        showNotice('Copied! Click Reply then paste with Ctrl+V.', 'info');
+      });
+      return;
     }
 
-    // Step 2: Check if the reply box currently open belongs to THIS review.
-    // We check by seeing if the existing textarea is a descendant of the same review row as draftBtn.
-    function isOurTextareaOpen() {
-      const ta = document.querySelector('textarea[jsname="YPqjbf"]');
-      if (!ta || !draftBtn) return null;
-      // Walk up from draftBtn looking for an ancestor that also contains the textarea
-      let el = draftBtn.parentElement;
-      for (let i = 0; i < 8 && el; i++) {
-        if (el.contains(ta)) return ta;
-        el = el.parentElement;
-      }
-      return null;
-    }
+    console.log('[RankSniper] Pasting into card at y=' + Math.round(reviewCard.getBoundingClientRect().top));
 
-    let textarea = isOurTextareaOpen();
+    // Look for textarea ONLY inside this review's OUCuxb container
+    let textarea = reviewCard.querySelector('textarea[jsname="YPqjbf"]');
 
     if (!textarea) {
-      // Either no reply box is open, or it's open for a DIFFERENT review.
-      // Click this review's Reply button to open the right one (Google will auto-close the other).
-      const replyBtn = findReplyBtn();
+      // Reply box is not open for this review. Click the Reply button INSIDE this card.
+      // Google will auto-close any other open reply box first.
+      const replyBtn = reviewCard.querySelector('button[jsname="rhPddf"]');
       if (replyBtn) {
+        console.log('[RankSniper] Clicking Reply button for this review');
         replyBtn.click();
-        await new Promise(resolve => setTimeout(resolve, 900));
-        textarea = isOurTextareaOpen();
+        // Wait for Google to close other reply box and open this one
+        await new Promise(resolve => setTimeout(resolve, 1200));
+        textarea = reviewCard.querySelector('textarea[jsname="YPqjbf"]');
+      } else {
+        console.log('[RankSniper] No Reply button found in this card');
       }
     }
 
@@ -559,7 +543,7 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.15 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
+    console.log('[RankSniper] v1.16 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
     setTimeout(injectButtons, 1500);
     setTimeout(injectButtons, 3000);
     setTimeout(injectButtons, 6000);
