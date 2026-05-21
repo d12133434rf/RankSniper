@@ -296,54 +296,37 @@
     btn.textContent = 'Generating...';
     try {
       const responseText = await callGemini(reviewData, null, null);
-      showPanel(card, responseText, reviewData);
+      showPanel(card, responseText, reviewData, btn);
     } catch (err) { showNotice('Error: ' + err.message, 'error'); }
     finally { btn.disabled = false; btn.textContent = 'Draft AI Response'; }
   }
 
-  async function pasteIntoReplyBox(text, card) {
-    // Strategy: find ALL textareas on the page, then pick the one closest to our card
-    // by comparing DOM position. This handles cases where the textarea is in a sibling
-    // container or moved around by Google's React rendering.
+  async function pasteIntoReplyBox(text, card, draftBtn) {
+    // Strategy: the Draft AI button (draftBtn) was injected right next to the Cancel button
+    // of THIS specific review's reply box. So we walk up from the draftBtn to find the
+    // textarea that's a sibling in the same reply box.
 
-    async function getAllTextareas() {
-      return [...document.querySelectorAll('textarea[jsname="YPqjbf"]')];
-    }
-
-    function closestToCard(textareas, cardEl) {
-      if (!textareas.length) return null;
-      if (textareas.length === 1) return textareas[0];
-      if (!cardEl) return textareas[0];
-
-      // Pick the textarea whose position is closest to the card's position
-      const cardRect = cardEl.getBoundingClientRect();
-      const cardY = cardRect.top + cardRect.height / 2;
-
-      let best = textareas[0];
-      let bestDist = Infinity;
-      for (const ta of textareas) {
-        const r = ta.getBoundingClientRect();
-        const taY = r.top + r.height / 2;
-        const dist = Math.abs(taY - cardY);
-        if (dist < bestDist) {
-          bestDist = dist;
-          best = ta;
-        }
+    function findTextareaForButton(btn) {
+      if (!btn) return null;
+      // Walk up the DOM from the button looking for a textarea sibling/descendant
+      let el = btn.parentElement;
+      for (let i = 0; i < 8 && el; i++) {
+        const ta = el.querySelector('textarea[jsname="YPqjbf"]');
+        if (ta) return ta;
+        el = el.parentElement;
       }
-      return best;
+      return null;
     }
 
-    let textareas = await getAllTextareas();
-    let textarea = closestToCard(textareas, card);
+    let textarea = findTextareaForButton(draftBtn);
 
-    if (!textarea) {
-      // No reply boxes open anywhere — find THIS card's Reply button and click it
-      const replyBtn = card?.querySelector('button[jsname="rhPddf"]');
+    if (!textarea && card) {
+      // Reply box might have been closed — click the Reply button in this card
+      const replyBtn = card.querySelector('button[jsname="rhPddf"]');
       if (replyBtn) {
         replyBtn.click();
         await new Promise(resolve => setTimeout(resolve, 800));
-        textareas = await getAllTextareas();
-        textarea = closestToCard(textareas, card);
+        textarea = findTextareaForButton(draftBtn) || card.querySelector('textarea[jsname="YPqjbf"]');
       }
     }
 
@@ -369,7 +352,7 @@
     }
   }
 
-  function showPanel(card, responseText, reviewData) {
+  function showPanel(card, responseText, reviewData, draftBtn) {
     card.querySelector('.rs-panel')?.remove();
     const panel = document.createElement('div');
     panel.className = 'rs-panel';
@@ -436,7 +419,7 @@
       const currentScore = scoreResponse(text, businessProfile);
       saveToHistory(reviewData.reviewerName, reviewData.rating, reviewData.reviewText, text, currentScore);
       panel.remove();
-      await pasteIntoReplyBox(text, card);
+      await pasteIntoReplyBox(text, card, draftBtn);
     });
 
     panel.querySelector('.rs-regen-btn').addEventListener('click', async () => {
