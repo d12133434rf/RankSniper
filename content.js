@@ -302,31 +302,51 @@
   }
 
   async function pasteIntoReplyBox(text, card, draftBtn) {
-    // Strategy: the Draft AI button (draftBtn) was injected right next to the Cancel button
-    // of THIS specific review's reply box. So we walk up from the draftBtn to find the
-    // textarea that's a sibling in the same reply box.
+    // Google only allows ONE reply box open at a time on the whole page.
+    // So we ALWAYS need to find this review's Reply button and click it to ensure
+    // the correct reply box is the one currently open.
 
-    function findTextareaForButton(btn) {
-      if (!btn) return null;
-      // Walk up the DOM from the button looking for a textarea sibling/descendant
-      let el = btn.parentElement;
+    // Step 1: Find this review's Reply button. It's a sibling of the Draft AI button
+    // (we injected Draft right next to the Cancel button which replaces Reply when open).
+    // If reply is currently closed for this review, the Reply button is in the same row.
+    function findReplyBtn() {
+      // Look near the Draft button first
+      if (draftBtn) {
+        let el = draftBtn.parentElement;
+        for (let i = 0; i < 6 && el; i++) {
+          const r = el.querySelector('button[jsname="rhPddf"]');
+          if (r) return r;
+          el = el.parentElement;
+        }
+      }
+      // Fallback: look in the card
+      return card?.querySelector('button[jsname="rhPddf"]') || null;
+    }
+
+    // Step 2: Check if the reply box currently open belongs to THIS review.
+    // We check by seeing if the existing textarea is a descendant of the same review row as draftBtn.
+    function isOurTextareaOpen() {
+      const ta = document.querySelector('textarea[jsname="YPqjbf"]');
+      if (!ta || !draftBtn) return null;
+      // Walk up from draftBtn looking for an ancestor that also contains the textarea
+      let el = draftBtn.parentElement;
       for (let i = 0; i < 8 && el; i++) {
-        const ta = el.querySelector('textarea[jsname="YPqjbf"]');
-        if (ta) return ta;
+        if (el.contains(ta)) return ta;
         el = el.parentElement;
       }
       return null;
     }
 
-    let textarea = findTextareaForButton(draftBtn);
+    let textarea = isOurTextareaOpen();
 
-    if (!textarea && card) {
-      // Reply box might have been closed — click the Reply button in this card
-      const replyBtn = card.querySelector('button[jsname="rhPddf"]');
+    if (!textarea) {
+      // Either no reply box is open, or it's open for a DIFFERENT review.
+      // Click this review's Reply button to open the right one (Google will auto-close the other).
+      const replyBtn = findReplyBtn();
       if (replyBtn) {
         replyBtn.click();
-        await new Promise(resolve => setTimeout(resolve, 800));
-        textarea = findTextareaForButton(draftBtn) || card.querySelector('textarea[jsname="YPqjbf"]');
+        await new Promise(resolve => setTimeout(resolve, 900));
+        textarea = isOurTextareaOpen();
       }
     }
 
