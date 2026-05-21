@@ -67,29 +67,31 @@
   }
 
   function scoreResponse(text, profile) {
-    // Start at 30, build up based on what's actually present
-    let score = 30;
+    // Start at 50 baseline — a response that follows basic format earns this
+    let score = 50;
     const lower = text.toLowerCase();
     const words = text.split(/\s+/).filter(Boolean).length;
 
     // === LENGTH (max 12 points) ===
-    if (words >= 65 && words <= 95) score += 12;
-    else if (words >= 55 && words <= 110) score += 8;
-    else if (words >= 40 && words <= 130) score += 4;
-    else if (words < 30 || words > 160) score -= 10;
+    if (words >= 60 && words <= 100) score += 12;
+    else if (words >= 50 && words <= 120) score += 9;
+    else if (words >= 40 && words <= 140) score += 5;
+    else if (words < 30 || words > 160) score -= 8;
 
-    // === PERSONALIZED GREETING (max 5 points) ===
+    // === GREETING (max 5 points) ===
+    // Any personalized "Hi [name]" or even "Hi there" counts since it's still polite
     if (/^hi [a-z]/i.test(text) && !lower.startsWith('hi there')) score += 5;
-    else if (lower.startsWith('hello ') && !lower.startsWith('hello there')) score += 4;
-    else if (lower.startsWith('hi ') || lower.startsWith('hello ')) score += 2;
+    else if (lower.startsWith('hi there') || lower.startsWith('hello there')) score += 3;
+    else if (lower.startsWith('hi ') || lower.startsWith('hello ')) score += 4;
+    else if (lower.startsWith('thanks') || lower.startsWith('thank you')) score += 3;
 
     // === BUSINESS NAME MENTION (max 10 points) ===
     if (profile?.businessName) {
       const bizLower = profile.businessName.toLowerCase();
       const bizCount = (lower.match(new RegExp(bizLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
       if (bizCount === 1) score += 10;
-      else if (bizCount === 2) score += 6;
-      else if (bizCount >= 3) score += 2;
+      else if (bizCount === 2) score += 7;
+      else if (bizCount >= 3) score += 3;
     }
 
     // === CITY MENTION (max 10 points) ===
@@ -97,7 +99,7 @@
       const cityLower = profile.city.split(',')[0].trim().toLowerCase();
       const cityCount = (lower.match(new RegExp(cityLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
       if (cityCount === 1) score += 10;
-      else if (cityCount === 2) score += 5;
+      else if (cityCount === 2) score += 6;
     }
 
     // === BUSINESS TYPE / SERVICE MENTION (max 8 points) ===
@@ -106,36 +108,40 @@
       if (lower.includes(typeLower)) score += 8;
     }
 
-    // === SEO KEYWORDS (max 15 points) ===
+    // === SEO KEYWORDS (max 8 points — lowered since keywords are optional and AI doesn't force them) ===
     const kwSources = [profile?.keywords, profile?.services].filter(Boolean).join(',');
     if (kwSources) {
       const kwList = kwSources.split(',').map(k => k.trim().replace(/\[City\]/gi, '').trim().toLowerCase()).filter(k => k && k.length > 2);
       const kwFound = kwList.filter(k => lower.includes(k)).length;
-      if (kwFound >= 3) score += 15;
-      else if (kwFound === 2) score += 10;
-      else if (kwFound === 1) score += 6;
+      if (kwFound >= 2) score += 8;
+      else if (kwFound === 1) score += 5;
+    } else {
+      // If user didn't set keywords, give them the points by default so they're not penalized
+      score += 5;
     }
 
     // === CALL TO ACTION (max 6 points) ===
     const ctaPhrases = ['come back', 'visit us', 'see you again', 'see you soon', 'give us another',
       'stop by', 'come see us', 'hope to see', 'love to have you', 'next visit', 'try us again',
-      'come on in', 'come by', 'swing by', 'reach out', 'let us know', 'give us a call'];
+      'come on in', 'come by', 'swing by', 'reach out', 'let us know', 'give us a call',
+      'another shot', 'another try', 'another chance', 'welcome back', 'invite you back',
+      'hope you'];
     if (ctaPhrases.some(p => lower.includes(p))) score += 6;
 
-    // === HUMAN TONE — uses contractions (max 5 points) ===
-    const contractions = ["we're", "we've", "we'll", "don't", "didn't", "it's", "that's", "you're", "you'll", "i'm", "can't", "won't"];
+    // === CONTRACTIONS — sounds human (max 4 points) ===
+    const contractions = ["we're", "we've", "we'll", "don't", "didn't", "it's", "that's", "you're", "you'll", "i'm", "can't", "won't", "isn't", "wasn't"];
     const contractionCount = contractions.filter(c => lower.includes(c)).length;
-    if (contractionCount >= 3) score += 5;
+    if (contractionCount >= 3) score += 4;
     else if (contractionCount >= 1) score += 2;
 
-    // === NO EM DASHES OR EN DASHES (3 points) ===
-    if (!text.includes('—') && !text.includes('–') && !text.includes(' - ')) score += 3;
+    // === NO EM DASHES OR EN DASHES (2 points) ===
+    if (!text.includes('—') && !text.includes('–')) score += 2;
 
-    // === SPECIFIC ACKNOWLEDGMENT (4 points) ===
-    // Bonus if response shows it actually read the review (mentions specific words/topics)
-    const specificMarkers = ['mentioned', 'said about', 'glad you', 'sorry you', 'hear that', 'hear your',
-      'about the', 'on the', 'for the'];
-    if (specificMarkers.some(m => lower.includes(m))) score += 4;
+    // === SPECIFIC ACKNOWLEDGMENT (5 points) ===
+    const specificMarkers = ['mentioned', 'said', 'glad you', 'sorry', 'hear that', 'hear your',
+      'about the', 'on the', 'for the', 'happy you', 'love that', 'great that',
+      'soggy', 'rude', 'tasteless', 'cold', 'hot', 'slow', 'fast', 'friendly', 'helpful'];
+    if (specificMarkers.some(m => lower.includes(m))) score += 5;
 
     // === PENALTIES — generic corporate phrases (-5 each) ===
     const genericPhrases = ['we strive to', 'we apologize for any inconvenience', 'at your earliest convenience',
