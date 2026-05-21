@@ -201,11 +201,21 @@
     if (instruction && previousResponse) {
       prompt = 'You wrote this Google review response for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants: "' + instruction + '"\n\nRewrite it. Start with "Hi ' + firstName + ',". Keep it under 100 words. Use contractions. Sound like a real person. No dashes of any kind.' + custom + '\n\nWrite only the response.';
     } else {
+      // Pick a random opener style for variety so responses don't all sound identical
+      const negOpeners = [
+        'Open by acknowledging what specifically went wrong from their review (do not start with "We\'re really sorry")',
+        'Open by taking ownership of the specific issue they mentioned (do not start with apology language)',
+        'Open by naming the specific problem and showing you read their review (avoid generic apology phrases)',
+        'Open by addressing the exact thing they were disappointed about (skip the generic apology)',
+        'Open by acknowledging their specific frustration directly (do not lead with "sorry")'
+      ];
+      const negOpener = negOpeners[Math.floor(Math.random() * negOpeners.length)];
+
       const sentimentPrompt = reviewData.rating <= 2
-        ? 'TONE: This is a negative review. Be genuinely apologetic without being defensive or corporate. Use direct, human language like "That\'s on us" or "We dropped the ball." Take ownership in one sentence. Briefly mention what you\'ll do differently using everyday words (not "implementing" or "reviewing protocols"). End by inviting them back to make it right. Be warm, not cold.'
+        ? 'TONE: This is a negative review. Be genuine, not corporate. Take ownership of what specifically went wrong. Use everyday words. Briefly mention how you will address it (without saying "implementing" or "reviewing protocols" or "dropped the ball"). End by inviting them back. ' + negOpener + '. DO NOT use these phrases anywhere: "dropped the ball", "that\'s on us", "we\'re really sorry", "we are sorry to hear", "we apologize", "sincere apologies", "sincerely apologize".'
         : reviewData.rating === 3
-        ? 'TONE: This is a mixed review. Acknowledge specifically what they liked AND specifically what disappointed them. No corporate hedging. Sound like a real person who genuinely wants to do better. Briefly note one thing you\'ll improve. End with a warm invite back.'
-        : 'TONE: This is a positive review. Be warm and grateful without being over-the-top. Reference one specific thing they mentioned. Sound like a real owner who just read this on their phone and smiled. Keep it conversational. End with a brief, sincere note inviting them back.';
+        ? 'TONE: This is a mixed review. Acknowledge specifically what they liked AND what disappointed them. No corporate hedging. Briefly note one thing you will improve. End with a warm invite back. Do not start with generic apology phrases.'
+        : 'TONE: This is a positive review. Be warm and grateful without being over-the-top. Reference one specific thing they mentioned. Sound like a real owner who just read this on their phone. Keep it conversational. End with a brief, sincere note inviting them back. Do not start with "Thank you so much" or "Thanks so much".';
 
       const kwPrompt = keywords
         ? ' Include 1 keyword only if it sounds completely natural in context, do not force it: ' + keywords + '.'
