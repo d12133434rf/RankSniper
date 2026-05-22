@@ -301,47 +301,63 @@
     finally { btn.disabled = false; btn.textContent = 'Draft AI Response'; }
   }
 
-  async function pasteIntoReplyBox(text, card, draftBtn) {
-    // div.OUCuxb is the stable per-review container — present whether the reply box
-    // is open or closed (confirmed via full ancestry console check). Scope everything to it.
+  async function pasteIntoReplyBox(text, card, draftBtn, reviewData) {
+    // Google re-renders the review when the reply box opens, which ORPHANS any stored
+    // element reference. So we identify the review by its stable text content and
+    // re-find it fresh after clicking Reply.
 
-    const reviewBox = draftBtn?._rsReviewBox
+    const reviewerName = reviewData?.reviewerName || '';
+    const reviewSnippet = (reviewData?.reviewText || '').substring(0, 40);
+
+    // Find the live OUCuxb for this review by matching its review text / reviewer name
+    function findReviewBox() {
+      const allBoxes = [...document.querySelectorAll('div.OUCuxb')];
+      for (const box of allBoxes) {
+        const txtEl = box.querySelector('span.oiQd1c');
+        const nameEl = box.querySelector('a.LH5kS');
+        const boxText = txtEl ? txtEl.innerText.trim() : '';
+        const boxName = nameEl ? nameEl.innerText.trim() : '';
+        if (reviewSnippet && boxText.includes(reviewSnippet.substring(0, 30))) return box;
+        if (reviewerName && boxName === reviewerName && reviewSnippet && boxText.includes(reviewSnippet.substring(0, 15))) return box;
+      }
+      return null;
+    }
+
+    let reviewBox = findReviewBox()
       || draftBtn?.closest('div.OUCuxb')
-      || card?.closest?.('div.OUCuxb')
-      || (card?.classList?.contains('OUCuxb') ? card : null);
+      || card?.closest?.('div.OUCuxb');
 
     if (!reviewBox) {
-      console.log('[RankSniper] No OUCuxb review container found, clipboard fallback');
+      console.log('[RankSniper] Could not find review container, clipboard fallback');
       navigator.clipboard.writeText(text).then(() => {
         showNotice('Copied! Click Reply then paste with Ctrl+V.', 'info');
       });
       return;
     }
 
-    console.log('[RankSniper] Target review container at y=' + Math.round(reviewBox.getBoundingClientRect().top));
+    console.log('[RankSniper] Found review container at y=' + Math.round(reviewBox.getBoundingClientRect().top));
 
-    async function waitForTextarea(maxMs) {
-      const start = Date.now();
-      while (Date.now() - start < maxMs) {
-        const ta = reviewBox.querySelector('textarea[jsname="YPqjbf"]');
-        if (ta) return ta;
-        await new Promise(r => setTimeout(r, 100));
-      }
-      return null;
-    }
-
-    // Already open for this review?
+    // Already open?
     let textarea = reviewBox.querySelector('textarea[jsname="YPqjbf"]');
 
     if (!textarea) {
-      // Reply box closed for this review — click its Reply button (inside this OUCuxb)
       const replyBtn = reviewBox.querySelector('button[jsname="rhPddf"]');
       if (replyBtn) {
-        console.log('[RankSniper] Clicking Reply button inside target review');
+        console.log('[RankSniper] Clicking Reply button');
         replyBtn.click();
-        textarea = await waitForTextarea(3000);
+
+        // Poll — but RE-FIND the review box each time since Google re-renders it
+        const start = Date.now();
+        while (Date.now() - start < 4000) {
+          await new Promise(r => setTimeout(r, 120));
+          const freshBox = findReviewBox();
+          if (freshBox) {
+            const ta = freshBox.querySelector('textarea[jsname="YPqjbf"]');
+            if (ta) { textarea = ta; reviewBox = freshBox; break; }
+          }
+        }
       } else {
-        console.log('[RankSniper] No Reply button found inside target review');
+        console.log('[RankSniper] No Reply button found');
       }
     }
 
@@ -438,7 +454,7 @@
       const currentScore = scoreResponse(text, businessProfile);
       saveToHistory(reviewData.reviewerName, reviewData.rating, reviewData.reviewText, text, currentScore);
       panel.remove();
-      await pasteIntoReplyBox(text, card, draftBtn);
+      await pasteIntoReplyBox(text, card, draftBtn, reviewData);
     });
 
     panel.querySelector('.rs-regen-btn').addEventListener('click', async () => {
@@ -562,7 +578,7 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.21 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
+    console.log('[RankSniper] v1.22 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
     setTimeout(injectButtons, 1500);
     setTimeout(injectButtons, 3000);
     setTimeout(injectButtons, 6000);
