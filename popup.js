@@ -34,25 +34,58 @@ async function callGeminiPopup(reviewData, instruction, previousResponse) {
 
   let prompt;
   if (instruction && previousResponse) {
-    prompt = 'You wrote this response to a Google review for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants you to change it: "' + instruction + '"\n\nRewrite the response keeping it natural and human. Start with "Hi ' + firstName + ',". Under 150 words. Never use em dashes, hyphens, or any kind of dash. Never use the word thrilled, delighted, or excited. Include city (' + city + ') and business name (' + biz + ') naturally.' + custom + '\n\nWrite only the new response, nothing else.';
+    prompt = 'You wrote this Google review response for ' + biz + ' in ' + city + ':\n\n"' + previousResponse + '"\n\nThe user wants: "' + instruction + '"\n\nRewrite it. Start with "Hi ' + firstName + ',". Keep it natural and human. Use contractions. No dashes of any kind.' + custom + '\n\nWrite only the response.';
   } else {
+    const negOpeners = [
+      'Open by acknowledging what specifically went wrong from their review (do not start with "We\'re really sorry")',
+      'Open by taking ownership of the specific issue they mentioned (do not start with apology language)',
+      'Open by naming the specific problem and showing you read their review (avoid generic apology phrases)',
+      'Open by addressing the exact thing they were disappointed about (skip the generic apology)',
+      'Open by acknowledging their specific frustration directly (do not lead with "sorry")'
+    ];
+    const negOpener = negOpeners[Math.floor(Math.random() * negOpeners.length)];
+
     const sentimentPrompt = reviewData.rating <= 2
-      ? 'This is a negative review. Read what they actually wrote and reference something specific from it — do not give a generic apology. Acknowledge what went wrong in plain human language. One sentence on what you are doing about it using simple everyday words, not corporate speak. End with a short genuine invite back. Do NOT use: we sincerely apologize, we are so sorry, training protocols, standard of care, quality checks, we strive to, we are committed to, we take pride, rest assured, implementing, we are reviewing, we are addressing.'
+      ? 'TONE: This is a negative review. Be genuine, not corporate. Take ownership of what specifically went wrong. Use everyday words. Briefly mention how you will address it (without saying "implementing" or "reviewing protocols" or "dropped the ball"). End by inviting them back. ' + negOpener + '. DO NOT use these phrases anywhere: "dropped the ball", "that\'s on us", "we\'re really sorry", "we are sorry to hear", "we apologize", "sincere apologies", "sincerely apologize".'
       : reviewData.rating === 3
-      ? 'This is a mixed review. Acknowledge what they liked and what missed without being generic. Be specific to what they actually said. Sound genuine and direct.'
-      : 'This is a positive review. Thank them warmly and reference something specific they mentioned. Keep it brief and real, not over the top.';
+      ? 'TONE: This is a mixed review. Acknowledge specifically what they liked AND what disappointed them. No corporate hedging. Briefly note one thing you will improve. End with a warm invite back. Do not start with generic apology phrases.'
+      : 'TONE: This is a positive review. Be warm and grateful without being over-the-top. Reference one specific thing they mentioned. Sound like a real owner who just read this on their phone. Keep it conversational. End with a brief, sincere note inviting them back. Do not start with "Thank you so much" or "Thanks so much".';
 
     const kwPrompt = keywords
       ? ' Include 1 keyword only if it sounds completely natural in context, do not force it: ' + keywords + '.'
       : '';
 
-    prompt = 'Write a Google review response for ' + biz + ' (' + type + ') in ' + city + '. Tone: ' + tone + '.\n\n' +
-      'Start with "Hi ' + firstName + ',".\n\n' +
-      sentimentPrompt + '\n\n' +
-      'You MUST naturally mention all three of these once each somewhere in the response: the business name (' + biz + '), the city (' + city + '), and the main service or business type (' + type + '). Weave them in naturally, do not list them.\n' +
+    const reviewWordCount = reviewData.reviewText.split(/\s+/).filter(Boolean).length;
+    let lengthRule, detailRule;
+    if (reviewWordCount < 25) {
+      lengthRule = '60 to 90 words';
+      detailRule = 'Reference the specific thing they mentioned.';
+    } else if (reviewWordCount < 60) {
+      lengthRule = '80 to 120 words';
+      detailRule = 'Address each specific issue or compliment they mentioned by name.';
+    } else if (reviewWordCount < 120) {
+      lengthRule = '120 to 170 words';
+      detailRule = 'Address EVERY specific point they raised (each complaint or compliment must get its own sentence). Do not lump multiple issues into one vague sentence.';
+    } else {
+      lengthRule = '160 to 220 words';
+      detailRule = 'Address EVERY specific point they raised individually. For long detailed reviews, the response must match that depth.';
+    }
+
+    prompt = 'You are the owner of ' + biz + ', a ' + type + ' in ' + city + '. Respond to this Google review.\n\n' +
+      'Review (' + reviewData.rating + '/5 stars, ' + reviewWordCount + ' words): "' + reviewData.reviewText + '"\n\n' +
+      'HARD REQUIREMENTS:\n' +
+      '- Start with: Hi ' + firstName + ',\n' +
+      '- Length: ' + lengthRule + '\n' +
+      '- ' + detailRule + '\n' +
+      '- Mention the business name (' + biz + ') exactly once, naturally in a sentence\n' +
+      '- Mention the city (' + city + ') exactly once, naturally in a sentence\n' +
+      '- Use contractions (we\'re, don\'t, it\'s)\n' +
+      '- Sound like a real business owner wrote it, not a PR firm\n\n' +
+      sentimentPrompt + '\n' +
       kwPrompt + '\n\n' +
-      'Rules: 60 to 100 words. No dashes of any kind. Use contractions. Sound like the real owner typed this on their phone, not a press release. Do not use: thrilled, delighted, excited, wonderful, amazing, fantastic, cherished, mortified, absolutely, sincerely, means the world, we look forward, we hope to see you, thank you for sharing, thank you for taking the time, at your earliest convenience, do not hesitate, we are committed, it is our goal, we take pride, we pride ourselves, we strive to, rest assured, standard of care, training protocols, quality checks, implementing.' +
-      custom + '\n\nReview (' + reviewData.rating + '/5): "' + reviewData.reviewText + '"\n\nWrite only the response, nothing else.';
+      'BANNED WORDS AND PHRASES (do not use any of these): thrilled, delighted, excited, wonderful, amazing, fantastic, cherished, mortified, absolutely, sincerely, means the world, we look forward, we hope to see you, thank you for sharing, thank you for taking the time, at your earliest convenience, do not hesitate, we are committed, it is our goal, we take pride, we pride ourselves, we strive to, rest assured, standard of care, training protocols, quality checks, implementing, reviews like yours, valued customer, esteemed, utmost.\n\n' +
+      'BANNED PUNCTUATION: no em dashes, no en dashes, no hyphens used as sentence breaks.\n\n' +
+      custom + '\n\nWrite only the response. No quotes, no signature, no preamble.';
   }
 
   const res = await fetch(API + '/api/generate', {
@@ -68,36 +101,83 @@ async function callGeminiPopup(reviewData, instruction, previousResponse) {
 }
 
 function scoreResponsePopup(text, profile) {
-  let score = 44;
+  let score = 50;
   const lower = text.toLowerCase();
-  const words = text.split(/\s+/).length;
-  if (words >= 60 && words <= 120) score += 10;
-  else if (words >= 40 && words < 60) score += 5;
-  else if (words > 120 && words <= 160) score += 3;
-  else if (words < 40) score -= 8;
-  if (lower.startsWith('hi ') && !lower.startsWith('hi there')) score += 5;
-  else if (lower.startsWith('hi there')) score += 1;
-  if (profile?.city && lower.includes(profile.city.split(',')[0].trim().toLowerCase())) score += 8;
-  if (profile?.businessName && lower.includes(profile.businessName.toLowerCase())) score += 8;
-  const hasCTA = lower.includes('come back') || lower.includes('visit us') || lower.includes('see you') ||
-    lower.includes('give us another') || lower.includes('contact us') || lower.includes('stop by') ||
-    lower.includes('welcome you back') || lower.includes('hope to see') || lower.includes('love to have you');
-  if (hasCTA) score += 6;
-  if (!text.includes('\u2014') && !text.includes(' - ')) score += 3;
+  const words = text.split(/\s+/).filter(Boolean).length;
+
+  if (words >= 60 && words <= 220) score += 12;
+  else if (words >= 50 && words <= 250) score += 9;
+  else if (words >= 40 && words <= 280) score += 5;
+  else if (words < 30) score -= 8;
+
+  if (/^hi [a-z]/i.test(text) && !lower.startsWith('hi there')) score += 5;
+  else if (lower.startsWith('hi there') || lower.startsWith('hello there')) score += 3;
+  else if (lower.startsWith('hi ') || lower.startsWith('hello ')) score += 4;
+  else if (lower.startsWith('thanks') || lower.startsWith('thank you')) score += 3;
+
+  if (profile?.businessName) {
+    const bizLower = profile.businessName.toLowerCase();
+    const bizCount = (lower.match(new RegExp(bizLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+    if (bizCount === 1) score += 10;
+    else if (bizCount === 2) score += 7;
+    else if (bizCount >= 3) score += 3;
+  }
+
+  if (profile?.city) {
+    const cityLower = profile.city.split(',')[0].trim().toLowerCase();
+    const cityCount = (lower.match(new RegExp(cityLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+    if (cityCount === 1) score += 10;
+    else if (cityCount === 2) score += 6;
+  }
+
+  if (profile?.businessType) {
+    if (lower.includes(profile.businessType.toLowerCase())) score += 8;
+  }
+
   const kwSources = [profile?.keywords, profile?.services].filter(Boolean).join(',');
   if (kwSources) {
-    const kwList = kwSources.split(',').map(k => k.trim().replace(/\[City\]/gi, '').trim().toLowerCase()).filter(Boolean);
-    const kwFound = kwList.filter(k => k && lower.includes(k)).length;
-    score += Math.min(kwFound * 4, 22);
+    const kwList = kwSources.split(',').map(k => k.trim().replace(/\[City\]/gi, '').trim().toLowerCase()).filter(k => k && k.length > 2);
+    const kwFound = kwList.filter(k => lower.includes(k)).length;
+    if (kwFound >= 2) score += 8;
+    else if (kwFound === 1) score += 5;
+  } else {
+    score += 5;
   }
+
+  const ctaPhrases = ['come back', 'visit us', 'see you again', 'see you soon', 'give us another',
+    'stop by', 'come see us', 'hope to see', 'love to have you', 'next visit', 'try us again',
+    'come on in', 'come by', 'swing by', 'reach out', 'let us know', 'give us a call',
+    'another shot', 'another try', 'another chance', 'welcome back', 'invite you back', 'hope you'];
+  if (ctaPhrases.some(p => lower.includes(p))) score += 6;
+
+  const contractions = ["we're", "we've", "we'll", "don't", "didn't", "it's", "that's", "you're", "you'll", "i'm", "can't", "won't", "isn't", "wasn't"];
+  const contractionCount = contractions.filter(c => lower.includes(c)).length;
+  if (contractionCount >= 3) score += 4;
+  else if (contractionCount >= 1) score += 2;
+
+  if (!text.includes('\u2014') && !text.includes('\u2013')) score += 2;
+
+  const specificMarkers = ['mentioned', 'said', 'glad you', 'sorry', 'hear that', 'hear your',
+    'about the', 'on the', 'for the', 'happy you', 'love that', 'great that',
+    'soggy', 'rude', 'tasteless', 'cold', 'hot', 'slow', 'fast', 'friendly', 'helpful'];
+  if (specificMarkers.some(m => lower.includes(m))) score += 5;
+
   const genericPhrases = ['we strive to', 'we apologize for any inconvenience', 'at your earliest convenience',
     'do not hesitate', 'please do not hesitate', 'we are committed to', 'it is our goal',
     'we take pride', 'rest assured', 'we value your feedback', 'thank you for bringing this to our attention',
     'thrilled', 'delighted', 'means the world', 'thank you for sharing', 'thank you for taking the time',
-    'we pride ourselves', 'it means a lot', 'reviews like yours'];
+    'we pride ourselves', 'it means a lot', 'reviews like yours', 'utmost', 'valued customer',
+    'esteemed', 'training protocols', 'standard of care', 'quality checks', 'implementing measures'];
   score -= genericPhrases.filter(p => lower.includes(p)).length * 5;
-  if (!lower.includes('hi') && !lower.includes('thank')) score -= 8;
-  return Math.min(Math.max(Math.round(score), 0), 100);
+
+  if (!lower.includes('hi') && !lower.includes('hello') && !lower.includes('thank')) score -= 10;
+
+  let finalScore = Math.min(Math.max(Math.round(score), 0), 100);
+  if (finalScore >= 96) {
+    const variance = (words % 5);
+    finalScore = 94 + variance;
+  }
+  return finalScore;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
