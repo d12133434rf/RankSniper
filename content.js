@@ -302,29 +302,29 @@
   }
 
   async function pasteIntoReplyBox(text, card, draftBtn) {
-    // RELIABLE APPROACH: each review is one div.OUCuxb. When its reply box is open,
-    // the textarea is a DOM DESCENDANT of that review's OUCuxb. We use containment
-    // (ouCard.querySelector) which is unambiguous even during Google's animations.
+    // CONFIRMED: div.BHq6Ye is the real per-review container. It holds both the
+    // reply button row AND the textarea for a single review. OUCuxb does NOT
+    // (cancel button and textarea live in separate OUCuxb elements).
 
-    const ouCard = draftBtn?._rsOuCard
-      || draftBtn?.closest('div.OUCuxb')
-      || card?.closest?.('div.OUCuxb')
-      || (card?.classList?.contains('OUCuxb') ? card : null);
+    const reviewBox = draftBtn?._rsReviewBox
+      || draftBtn?.closest('div.BHq6Ye')
+      || card?.closest?.('div.BHq6Ye')
+      || (card?.classList?.contains('BHq6Ye') ? card : null);
 
-    if (!ouCard) {
-      console.log('[RankSniper] No OUCuxb card found, clipboard fallback');
+    if (!reviewBox) {
+      console.log('[RankSniper] No BHq6Ye review box found, clipboard fallback');
       navigator.clipboard.writeText(text).then(() => {
         showNotice('Copied! Click Reply then paste with Ctrl+V.', 'info');
       });
       return;
     }
 
-    console.log('[RankSniper] Target review OUCuxb at y=' + Math.round(ouCard.getBoundingClientRect().top));
+    console.log('[RankSniper] Target review box at y=' + Math.round(reviewBox.getBoundingClientRect().top));
 
-    async function waitForTextareaInCard(maxMs) {
+    async function waitForTextareaInBox(maxMs) {
       const start = Date.now();
       while (Date.now() - start < maxMs) {
-        const ta = ouCard.querySelector('textarea[jsname="YPqjbf"]');
+        const ta = reviewBox.querySelector('textarea[jsname="YPqjbf"]');
         if (ta) return ta;
         await new Promise(r => setTimeout(r, 100));
       }
@@ -332,16 +332,17 @@
     }
 
     // Is the reply box already open for THIS review?
-    let textarea = ouCard.querySelector('textarea[jsname="YPqjbf"]');
+    let textarea = reviewBox.querySelector('textarea[jsname="YPqjbf"]');
 
     if (!textarea) {
-      const replyBtn = ouCard.querySelector('button[jsname="rhPddf"]');
+      // Click the Reply button inside THIS review box
+      const replyBtn = reviewBox.querySelector('button[jsname="rhPddf"]');
       if (replyBtn) {
-        console.log('[RankSniper] Clicking Reply button inside target OUCuxb');
+        console.log('[RankSniper] Clicking Reply button inside target review box');
         replyBtn.click();
-        textarea = await waitForTextareaInCard(3000);
+        textarea = await waitForTextareaInBox(3000);
       } else {
-        console.log('[RankSniper] No Reply button inside target OUCuxb');
+        console.log('[RankSniper] No Reply button inside target review box');
       }
     }
 
@@ -521,8 +522,8 @@
       btn.className = 'ranksniper-btn';
       btn.textContent = 'Draft AI Response';
       btn.style.marginLeft = '8px';
-      // Store this review's OUCuxb container so paste can scope reliably
-      btn._rsOuCard = cancelBtn.closest('div.OUCuxb');
+      // Store this review's BHq6Ye container (the real per-review box)
+      btn._rsReviewBox = cancelBtn.closest('div.BHq6Ye');
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         e.preventDefault();
@@ -543,8 +544,8 @@
       const btn = document.createElement('button');
       btn.className = 'ranksniper-btn';
       btn.textContent = 'Draft AI Response';
-      // Store this review's OUCuxb container so paste can scope reliably
-      btn._rsOuCard = card;
+      // Store this review's BHq6Ye container (the real per-review box)
+      btn._rsReviewBox = card.closest('div.BHq6Ye') || (card.classList?.contains('BHq6Ye') ? card : card.querySelector('div.BHq6Ye'));
       btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, card); });
       const row = card.querySelector('div.lGXsGc');
       if (row) row.appendChild(btn);
@@ -562,7 +563,7 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.19 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
+    console.log('[RankSniper] v1.20 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
     setTimeout(injectButtons, 1500);
     setTimeout(injectButtons, 3000);
     setTimeout(injectButtons, 6000);
