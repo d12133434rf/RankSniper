@@ -302,26 +302,25 @@
   }
 
   async function pasteIntoReplyBox(text, card, draftBtn) {
-    // CONFIRMED: div.BHq6Ye is the real per-review container. It holds both the
-    // reply button row AND the textarea for a single review. OUCuxb does NOT
-    // (cancel button and textarea live in separate OUCuxb elements).
+    // div.OUCuxb is the stable per-review container — present whether the reply box
+    // is open or closed (confirmed via full ancestry console check). Scope everything to it.
 
     const reviewBox = draftBtn?._rsReviewBox
-      || draftBtn?.closest('div.BHq6Ye')
-      || card?.closest?.('div.BHq6Ye')
-      || (card?.classList?.contains('BHq6Ye') ? card : null);
+      || draftBtn?.closest('div.OUCuxb')
+      || card?.closest?.('div.OUCuxb')
+      || (card?.classList?.contains('OUCuxb') ? card : null);
 
     if (!reviewBox) {
-      console.log('[RankSniper] No BHq6Ye review box found, clipboard fallback');
+      console.log('[RankSniper] No OUCuxb review container found, clipboard fallback');
       navigator.clipboard.writeText(text).then(() => {
         showNotice('Copied! Click Reply then paste with Ctrl+V.', 'info');
       });
       return;
     }
 
-    console.log('[RankSniper] Target review box at y=' + Math.round(reviewBox.getBoundingClientRect().top));
+    console.log('[RankSniper] Target review container at y=' + Math.round(reviewBox.getBoundingClientRect().top));
 
-    async function waitForTextareaInBox(maxMs) {
+    async function waitForTextarea(maxMs) {
       const start = Date.now();
       while (Date.now() - start < maxMs) {
         const ta = reviewBox.querySelector('textarea[jsname="YPqjbf"]');
@@ -331,23 +330,23 @@
       return null;
     }
 
-    // Is the reply box already open for THIS review?
+    // Already open for this review?
     let textarea = reviewBox.querySelector('textarea[jsname="YPqjbf"]');
 
     if (!textarea) {
-      // Click the Reply button inside THIS review box
+      // Reply box closed for this review — click its Reply button (inside this OUCuxb)
       const replyBtn = reviewBox.querySelector('button[jsname="rhPddf"]');
       if (replyBtn) {
-        console.log('[RankSniper] Clicking Reply button inside target review box');
+        console.log('[RankSniper] Clicking Reply button inside target review');
         replyBtn.click();
-        textarea = await waitForTextareaInBox(3000);
+        textarea = await waitForTextarea(3000);
       } else {
-        console.log('[RankSniper] No Reply button inside target review box');
+        console.log('[RankSniper] No Reply button found inside target review');
       }
     }
 
     if (!textarea) {
-      console.log('[RankSniper] Could not locate textarea inside target review, clipboard fallback');
+      console.log('[RankSniper] Could not locate textarea, clipboard fallback');
     }
 
     if (textarea) {
@@ -522,8 +521,8 @@
       btn.className = 'ranksniper-btn';
       btn.textContent = 'Draft AI Response';
       btn.style.marginLeft = '8px';
-      // Store this review's BHq6Ye container (the real per-review box)
-      btn._rsReviewBox = cancelBtn.closest('div.BHq6Ye');
+      // Store this review's OUCuxb container (stable, present open or closed)
+      btn._rsReviewBox = cancelBtn.closest('div.OUCuxb');
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         e.preventDefault();
@@ -544,8 +543,8 @@
       const btn = document.createElement('button');
       btn.className = 'ranksniper-btn';
       btn.textContent = 'Draft AI Response';
-      // Store this review's BHq6Ye container (the real per-review box)
-      btn._rsReviewBox = card.closest('div.BHq6Ye') || (card.classList?.contains('BHq6Ye') ? card : card.querySelector('div.BHq6Ye'));
+      // Store this review's OUCuxb container (stable, present open or closed)
+      btn._rsReviewBox = card.classList?.contains('OUCuxb') ? card : card.closest('div.OUCuxb');
       btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, card); });
       const row = card.querySelector('div.lGXsGc');
       if (row) row.appendChild(btn);
@@ -563,7 +562,7 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.20 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
+    console.log('[RankSniper] v1.21 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
     setTimeout(injectButtons, 1500);
     setTimeout(injectButtons, 3000);
     setTimeout(injectButtons, 6000);
