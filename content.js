@@ -156,7 +156,15 @@
     // === MISSING ESSENTIALS PENALTY ===
     if (!lower.includes('hi') && !lower.includes('hello') && !lower.includes('thank')) score -= 10;
 
-    return Math.min(Math.max(Math.round(score), 0), 100);
+    // Cap at 98 (not 100) — a perfect 100 looks fake/untrustworthy to users.
+    // Strong responses land 94-98, with slight deterministic variance based on length.
+    let finalScore = Math.min(Math.max(Math.round(score), 0), 100);
+    if (finalScore >= 96) {
+      // Pull high scores into the 94-98 band using word count as a stable variance source
+      const variance = (words % 5); // 0-4, deterministic for the same response
+      finalScore = 94 + variance;
+    }
+    return finalScore;
   }
 
   function getKeywords(text, profile) {
@@ -578,7 +586,7 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.22 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
+    console.log('[RankSniper] v1.23 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
     setTimeout(injectButtons, 1500);
     setTimeout(injectButtons, 3000);
     setTimeout(injectButtons, 6000);
