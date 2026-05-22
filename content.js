@@ -302,62 +302,51 @@
   }
 
   async function pasteIntoReplyBox(text, card, draftBtn) {
-    // Wait helper: poll until a textarea exists that's positioned near our draft button.
-    // This handles the race where Google is mid-transition between two open reply boxes.
-    async function waitForOurTextarea(maxMs) {
+    // RELIABLE APPROACH: each review is one div.OUCuxb. When its reply box is open,
+    // the textarea is a DOM DESCENDANT of that review's OUCuxb. We use containment
+    // (ouCard.querySelector) which is unambiguous even during Google's animations.
+
+    const ouCard = draftBtn?._rsOuCard
+      || draftBtn?.closest('div.OUCuxb')
+      || card?.closest?.('div.OUCuxb')
+      || (card?.classList?.contains('OUCuxb') ? card : null);
+
+    if (!ouCard) {
+      console.log('[RankSniper] No OUCuxb card found, clipboard fallback');
+      navigator.clipboard.writeText(text).then(() => {
+        showNotice('Copied! Click Reply then paste with Ctrl+V.', 'info');
+      });
+      return;
+    }
+
+    console.log('[RankSniper] Target review OUCuxb at y=' + Math.round(ouCard.getBoundingClientRect().top));
+
+    async function waitForTextareaInCard(maxMs) {
       const start = Date.now();
-      const btnY = draftBtn ? draftBtn.getBoundingClientRect().top : 0;
       while (Date.now() - start < maxMs) {
-        const tas = [...document.querySelectorAll('textarea[jsname="YPqjbf"]')];
-        // Find a textarea that's ABOVE our draft button and within 500px
-        // (the reply box opens between the review text and the button row)
-        for (const ta of tas) {
-          const taY = ta.getBoundingClientRect().top;
-          const diff = btnY - taY;
-          if (diff > 0 && diff < 500) return ta;
-        }
+        const ta = ouCard.querySelector('textarea[jsname="YPqjbf"]');
+        if (ta) return ta;
         await new Promise(r => setTimeout(r, 100));
       }
       return null;
     }
 
-    let textarea = null;
+    // Is the reply box already open for THIS review?
+    let textarea = ouCard.querySelector('textarea[jsname="YPqjbf"]');
 
-    if (draftBtn?._rsIsCurrentlyOpen && draftBtn._rsCancelBtn) {
-      console.log('[RankSniper] Reply box currently open for this review');
-      // Walk up from cancel button to find the textarea
-      let el = draftBtn._rsCancelBtn.parentElement;
-      for (let i = 0; i < 8 && el && !textarea; i++) {
-        textarea = el.querySelector('textarea[jsname="YPqjbf"]');
-        if (textarea) break;
-        el = el.parentElement;
+    if (!textarea) {
+      const replyBtn = ouCard.querySelector('button[jsname="rhPddf"]');
+      if (replyBtn) {
+        console.log('[RankSniper] Clicking Reply button inside target OUCuxb');
+        replyBtn.click();
+        textarea = await waitForTextareaInCard(3000);
+      } else {
+        console.log('[RankSniper] No Reply button inside target OUCuxb');
       }
-      // Verify it's actually near our button (sanity check for multi-review pages)
-      if (textarea && draftBtn) {
-        const taY = textarea.getBoundingClientRect().top;
-        const btnY = draftBtn.getBoundingClientRect().top;
-        const diff = btnY - taY;
-        if (diff <= 0 || diff > 500) {
-          console.log('[RankSniper] Textarea found is not near our button, will reopen');
-          textarea = null;
-        }
-      }
-    }
-
-    if (!textarea && draftBtn?._rsReplyBtn) {
-      console.log('[RankSniper] Clicking stored Reply button for this review');
-      draftBtn._rsReplyBtn.click();
-      // Wait for OUR textarea to appear (verified by position relative to our button)
-      textarea = await waitForOurTextarea(2500);
-    }
-
-    if (!textarea && draftBtn?._rsCancelBtn) {
-      // Edge case: cancel was set but textarea wasn't found above. Try waiting for it.
-      textarea = await waitForOurTextarea(1500);
     }
 
     if (!textarea) {
-      console.log('[RankSniper] Could not locate textarea, falling back to clipboard');
+      console.log('[RankSniper] Could not locate textarea inside target review, clipboard fallback');
     }
 
     if (textarea) {
@@ -532,10 +521,8 @@
       btn.className = 'ranksniper-btn';
       btn.textContent = 'Draft AI Response';
       btn.style.marginLeft = '8px';
-      // This button was injected because reply box is CURRENTLY OPEN for this review.
-      // The cancel button is right next to us, and the textarea is in the same reply section.
-      btn._rsCancelBtn = cancelBtn;
-      btn._rsIsCurrentlyOpen = true;
+      // Store this review's OUCuxb container so paste can scope reliably
+      btn._rsOuCard = cancelBtn.closest('div.OUCuxb');
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         e.preventDefault();
@@ -556,9 +543,8 @@
       const btn = document.createElement('button');
       btn.className = 'ranksniper-btn';
       btn.textContent = 'Draft AI Response';
-      // Store this card's Reply button on the draft btn so we can find it later
-      btn._rsReplyBtn = card.querySelector('button[jsname="rhPddf"]');
-      btn._rsCard = card;
+      // Store this review's OUCuxb container so paste can scope reliably
+      btn._rsOuCard = card;
       btn.addEventListener('click', async (e) => { e.stopPropagation(); e.preventDefault(); await handleDraftClick(btn, reviewData, card); });
       const row = card.querySelector('div.lGXsGc');
       if (row) row.appendChild(btn);
@@ -576,7 +562,7 @@
 
   async function init() {
     await loadProfile();
-    console.log('[RankSniper] v1.18 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
+    console.log('[RankSniper] v1.19 loaded. Logged in:', isLoggedIn, '| Plan:', userPlan);
     setTimeout(injectButtons, 1500);
     setTimeout(injectButtons, 3000);
     setTimeout(injectButtons, 6000);
